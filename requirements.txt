@@ -1,3 +1,4 @@
 Jinja2~=3.1.2
 boto3~=1.23.4
 Flask~=2.1.2
+werkzeug>=3.0.6 # not directly required, pinned by Snyk to avoid a vulnerability
