@@ -23,6 +23,9 @@ from src.version import get_version
 
 def get_database_url():
     """Construct database URL from environment variables or return the direct URL if provided."""
+    if os.environ.get('FLASK_ENV') == 'testing':
+        return 'sqlite:///:memory:'
+    
     if 'DATABASE_URL' in os.environ:
         return os.environ['DATABASE_URL']
     
@@ -64,14 +67,15 @@ db.init_app(app)
 migrate = Migrate(app, db)
 
 # Database configuration and verification
-try:
-    engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
-    with engine.connect() as conn:
-        conn.execute(text("SELECT 1"))
-    app.logger.info('Database connection successful')
-except SQLAlchemyError as e:
-    app.logger.error(f'Database connection failed: {str(e)}')
-    raise
+if not app.config['TESTING']:
+    try:
+        engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        app.logger.info('Database connection successful')
+    except SQLAlchemyError as e:
+        app.logger.error(f'Database connection failed: {str(e)}')
+        raise
 
 def handle_aws_error(func):
     """Decorator to handle AWS-related errors in routes."""

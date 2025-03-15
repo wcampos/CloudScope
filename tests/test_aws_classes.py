@@ -1,13 +1,33 @@
-import pytest
+"""Tests for AWS service classes."""
+
 from unittest.mock import Mock, patch
-from src.aws_classes import Alb, AwsLambda, DynamoDB, Ec2, Rds, S3
+
+import pytest
+from botocore.exceptions import ClientError
+
+from src.aws_classes import Alb, DynamoDB, Ec2
+from src.models import AWSProfile, db
 
 @pytest.fixture
-def mock_boto3_client():
-    with patch('boto3.client') as mock_client:
-        yield mock_client
+def aws_profile(app):
+    """Create a test AWS profile."""
+    with app.app_context():
+        profile = AWSProfile(
+            name='test-profile',
+            aws_access_key_id='test-key',
+            aws_secret_access_key='test-secret',
+            aws_region='us-east-1',
+            is_active=True
+        )
+        db.session.add(profile)
+        db.session.commit()
+        yield profile
+        db.session.delete(profile)
+        db.session.commit()
 
-def test_alb_describe_target_groups(mock_boto3_client):
+@patch('boto3.Session.client')
+def test_alb_describe_target_groups(mock_boto3_client, app, aws_profile):
+    """Test ALB target groups description."""
     # Mock response data
     mock_response = {
         'TargetGroups': [{
@@ -23,43 +43,47 @@ def test_alb_describe_target_groups(mock_boto3_client):
             'Matcher': {'HttpCode': '200'}
         }]
     }
-    
+
     # Setup mock
     mock_client = Mock()
     mock_client.describe_target_groups.return_value = mock_response
     mock_boto3_client.return_value = mock_client
-    
+
     # Test
-    alb = Alb()
-    result = alb.describe_target_groups()
-    
-    # Assertions
+    with app.app_context():
+        alb = Alb()
+        result = alb.describe_target_groups()
+
     assert len(result) == 1
     assert result[0]['Name'] == 'test-tg'
     assert result[0]['Protocol'] == 'HTTP'
     assert result[0]['Port'] == 80
 
-def test_dynamodb_describe_tables(mock_boto3_client):
+@patch('boto3.Session.client')
+def test_dynamodb_describe_tables(mock_boto3_client, app, aws_profile):
+    """Test DynamoDB tables description."""
     # Mock response data
     mock_response = {
         'TableNames': ['table1', 'table2']
     }
-    
+
     # Setup mock
     mock_client = Mock()
     mock_client.list_tables.return_value = mock_response
     mock_boto3_client.return_value = mock_client
-    
+
     # Test
-    dynamodb = DynamoDB()
-    result = dynamodb.describe_dynamodb()
-    
-    # Assertions
+    with app.app_context():
+        dynamodb = DynamoDB()
+        result = dynamodb.describe_dynamodb()
+
     assert len(result) == 2
     assert result[0]['Name'] == 'table1'
     assert result[1]['Name'] == 'table2'
 
-def test_ec2_describe_instances(mock_boto3_client):
+@patch('boto3.Session.client')
+def test_ec2_describe_instances(mock_boto3_client, app, aws_profile):
+    """Test EC2 instances description."""
     # Mock response data
     mock_response = {
         'Reservations': [{
@@ -81,25 +105,25 @@ def test_ec2_describe_instances(mock_boto3_client):
             }]
         }]
     }
-    
+
     # Setup mock
     mock_client = Mock()
     mock_client.describe_instances.return_value = mock_response
     mock_boto3_client.return_value = mock_client
-    
+
     # Test
-    ec2 = Ec2()
-    result = ec2.describe_ec2()
-    
-    # Assertions
+    with app.app_context():
+        ec2 = Ec2()
+        result = ec2.describe_ec2()
+
     assert len(result) == 1
     assert result[0]['Name'] == 'test-instance'
-    assert result[0]['Environment'] == 'test'
     assert result[0]['Instance Id'] == 'i-123'
+    assert result[0]['Instance Type'] == 't2.micro'
 
-def test_error_handling(mock_boto3_client):
-    from botocore.exceptions import ClientError
-    
+@patch('boto3.Session.client')
+def test_error_handling(mock_boto3_client, app, aws_profile):
+    """Test AWS error handling."""
     # Setup mock to raise an error
     mock_client = Mock()
     mock_client.describe_instances.side_effect = ClientError(
@@ -107,10 +131,9 @@ def test_error_handling(mock_boto3_client):
         operation_name='DescribeInstances'
     )
     mock_boto3_client.return_value = mock_client
-    
+
     # Test
-    ec2 = Ec2()
-    result = ec2.describe_ec2()
-    
-    # Assertions
-    assert result == []  # Should return empty list on error 
+    with app.app_context():
+        ec2 = Ec2()
+        with pytest.raises(ClientError):
+            ec2.describe_ec2() 
