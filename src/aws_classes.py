@@ -1,8 +1,11 @@
-import boto3
+"""AWS service classes for interacting with various AWS resources."""
+
 import logging
-from typing import List, Dict, Any
-from botocore.exceptions import ClientError
 from functools import wraps
+from typing import List, Dict, Any
+
+import boto3
+from botocore.exceptions import ClientError
 from src.models import AWSProfile
 
 # Configure logging
@@ -10,16 +13,17 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def aws_error_handler(func):
+    """Decorator to handle AWS API errors."""
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except ClientError as e:
-            logger.error(f"AWS API error in {func.__name__}: {str(e)}")
-            return []
+            logger.error("AWS API error in %s: %s", func.__name__, str(e))
+            raise
         except Exception as e:
-            logger.error(f"Unexpected error in {func.__name__}: {str(e)}")
-            return []
+            logger.error("Unexpected error in %s: %s", func.__name__, str(e))
+            raise
     return wrapper
 
 class AWSBase:

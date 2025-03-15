@@ -1,10 +1,12 @@
 """Tests for the AWS Inventory Flask application."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from botocore.exceptions import ClientError
-from app import app, db
 from flask import url_for
+
+from app import app, db
 
 @pytest.fixture
 def client():
@@ -116,8 +118,7 @@ def test_404_error(client):
 
 @patch('src.aws_classes.Ec2.describe_ec2')
 def test_aws_error_handling(mock_ec2, client):
-    from botocore.exceptions import ClientError
-    
+    """Test error handling for AWS API errors."""
     # Mock AWS error
     mock_ec2.side_effect = ClientError(
         error_response={'Error': {'Code': 'AccessDenied', 'Message': 'Access Denied'}},

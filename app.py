@@ -8,19 +8,21 @@ and monitoring application settings.
 import os
 import logging
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, flash
-from flask_migrate import Migrate
-from src.models import db, AWSProfile, SchemaVersion
-from src import aws_classes as awsc
-from src.version import get_version
-from botocore.exceptions import ClientError
-from sqlalchemy import create_engine, text, inspect
-from sqlalchemy.exc import SQLAlchemyError
 from logging.handlers import RotatingFileHandler
 from urllib.parse import quote_plus
 
+from botocore.exceptions import ClientError
+from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_migrate import Migrate
+from sqlalchemy import create_engine, text, inspect
+from sqlalchemy.exc import SQLAlchemyError
+
+from src.models import db, AWSProfile, SchemaVersion
+from src import aws_classes as awsc
+from src.version import get_version
+
 def get_database_url():
-    """Construct database URL from environment variables or return the direct URL if provided"""
+    """Construct database URL from environment variables or return the direct URL if provided."""
     if 'DATABASE_URL' in os.environ:
         return os.environ['DATABASE_URL']
     
@@ -92,9 +94,9 @@ def handle_aws_error(func):
     return wrapper
 
 @app.template_filter('now')
-def now_filter(format='%Y'):
+def now_filter(date_format='%Y'):
     """Template filter to format current datetime."""
-    return datetime.now().strftime(format)
+    return datetime.now().strftime(date_format)
 
 @app.template_filter('datetime')
 def datetime_filter(value, format_string='%Y-%m-%d %H:%M:%S'):
@@ -254,11 +256,13 @@ def settings():
     )
 
 @app.errorhandler(404)
-def not_found_error(error):
+def not_found_error(_):
+    """Handle 404 errors."""
     return render_template("error.html.j2", error="Page not found"), 404
 
 @app.errorhandler(500)
-def internal_error(error):
+def internal_error(_):
+    """Handle 500 errors."""
     return render_template("error.html.j2", error="Internal server error"), 500
 
 def init_db():

@@ -4,14 +4,17 @@ from flask_sqlalchemy import SQLAlchemy
 db = SQLAlchemy()
 
 class SchemaVersion(db.Model):
+    """Model for tracking database schema version."""
     __tablename__ = 'schema_version'
+    
     id = db.Column(db.Integer, primary_key=True)
-    version = db.Column(db.String(50), nullable=False)
-    applied_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    version = db.Column(db.String(20), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
     @staticmethod
     def get_current_version():
-        version = SchemaVersion.query.order_by(SchemaVersion.applied_at.desc()).first()
+        """Get the current schema version."""
+        version = SchemaVersion.query.order_by(SchemaVersion.created_at.desc()).first()
         return version.version if version else None
 
 class AWSProfile(db.Model):

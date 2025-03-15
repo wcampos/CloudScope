@@ -1,9 +1,19 @@
-import pytest
+"""Test configuration and fixtures."""
+
 import os
 import sys
 
-# Add the project root directory to Python path
+import pytest
+
+# Add the project root to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+@pytest.fixture(autouse=True)
+def setup_test_env():
+    """Set up test environment variables."""
+    os.environ['FLASK_ENV'] = 'testing'
+    os.environ['SECRET_KEY'] = 'test-key'
+    yield
 
 @pytest.fixture(autouse=True)
 def aws_credentials():
