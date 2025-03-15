@@ -270,6 +270,7 @@ def internal_error(_):
     return render_template("error.html.j2", error="Internal server error"), 500
 
 def init_db():
+    """Initialize the database schema."""
     CURRENT_SCHEMA_VERSION = '1.0.0'  # Update this when making schema changes
 
     with app.app_context():
@@ -290,7 +291,10 @@ def init_db():
         if 'schema_version' in tables_exist:
             current_version = SchemaVersion.get_current_version()
             if current_version != CURRENT_SCHEMA_VERSION:
-                app.logger.info(f'Schema version mismatch. Current: {current_version}, Expected: {CURRENT_SCHEMA_VERSION}')
+                app.logger.info(
+                    f'Schema version mismatch. Current: {current_version}, '
+                    f'Expected: {CURRENT_SCHEMA_VERSION}'
+                )
                 # Here you would typically run migrations instead of recreating
                 # For now, we'll just update the version
                 version = SchemaVersion(version=CURRENT_SCHEMA_VERSION)

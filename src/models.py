@@ -1,3 +1,4 @@
+"""Database models for the AWS Inventory application."""
 from datetime import datetime, UTC
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import String, DateTime
@@ -36,6 +37,7 @@ class AWSProfile(db.Model):
         return f'<AWSProfile {self.name}>'
 
     def to_dict(self):
+        """Convert the profile to a dictionary."""
         return {
             'id': self.id,
             'name': self.name,

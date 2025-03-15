@@ -5,13 +5,11 @@ import sys
 import tempfile
 
 import pytest
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from app import app as flask_app, db
+from app import app as flask_app, db  # pylint: disable=wrong-import-position
 
 @pytest.fixture
 def app():
@@ -59,4 +57,5 @@ def aws_credentials():
     os.environ['AWS_SECRET_ACCESS_KEY'] = 'testing'
     os.environ['AWS_SECURITY_TOKEN'] = 'testing'
     os.environ['AWS_SESSION_TOKEN'] = 'testing'
-    os.environ['AWS_DEFAULT_REGION'] = 'us-east-1' 
+    os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
+    yield 

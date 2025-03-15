@@ -1,19 +1,20 @@
-"""Version information for AWS Inventory."""
+"""Version information for the AWS Inventory application."""
 import os
-
-# Default version if not running from a release
-__version__ = "development"
+import subprocess
 
 def get_version():
     """Get the current version of the application.
     
     Returns:
-        str: The version string. Will be 'development' if not running from a release,
-             otherwise will be the release version.
+        str: The version string. If running in development mode, returns 'development'.
+        If in production and git is available, returns the git commit hash.
+        Otherwise, returns 'unknown'.
     """
-    # Check for version file that would be created during release
-    version_file = os.path.join(os.path.dirname(__file__), 'VERSION')
-    if os.path.exists(version_file):
-        with open(version_file, 'r', encoding='utf-8') as f:
-            return f.read().strip()
-    return __version__ 
+    if os.environ.get('FLASK_ENV') == 'development':
+        return 'development'
+    
+    try:
+        git_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'])
+        return git_hash.decode('utf-8').strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return 'unknown' 

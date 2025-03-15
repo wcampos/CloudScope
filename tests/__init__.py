@@ -1,1 +1,1 @@
-"""Test package for AWS Inventory application.""" 
+"""Test package for AWS Inventory.""" 
