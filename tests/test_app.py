@@ -1,16 +1,38 @@
 import pytest
 from unittest.mock import patch
-from app import app
+from app import app, db
+from flask import url_for
 
 @pytest.fixture
 def client():
     app.config['TESTING'] = True
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://test_user:test_password@localhost:5432/test_db'
+    
     with app.test_client() as client:
-        yield client
+        with app.app_context():
+            db.create_all()
+            yield client
+            db.session.remove()
+            db.drop_all()
 
-def test_index_route(client):
+def test_index_page(client):
+    """Test that the index page loads successfully."""
     response = client.get('/')
     assert response.status_code == 200
+
+def test_settings_page(client):
+    """Test that the settings page loads successfully."""
+    response = client.get('/settings')
+    assert response.status_code == 200
+    assert b'Application Settings' in response.data
+    
+def test_version_info(client):
+    """Test that version information is displayed on settings page."""
+    response = client.get('/settings')
+    assert response.status_code == 200
+    assert b'Version Information' in response.data
+    # Version will be 'development' in test environment
+    assert b'development' in response.data
 
 @patch('src.aws_classes.Alb.describe_target_groups')
 @patch('src.aws_classes.Alb.describe_loadbalancers')
