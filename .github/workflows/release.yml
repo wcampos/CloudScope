@@ -1,4 +1,4 @@
-name: Create Release
+name: create release
 
 on:
   pull_request:
@@ -13,12 +13,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout code
+      - name: checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Get version from PR title
+      - name: get version from pr title
         id: get_version
         run: |
           PR_TITLE="${{ github.event.pull_request.title }}"
@@ -29,11 +29,11 @@ jobs:
             exit 1
           fi
 
-      - name: Create version file
+      - name: create version file
         run: |
           echo "${{ steps.get_version.outputs.version }}" > src/VERSION
 
-      - name: Create release ZIP
+      - name: create release zip
         run: |
           # Exclude development and git files
           zip -r aws_inventory_${{ steps.get_version.outputs.version }}.zip . \
@@ -51,7 +51,7 @@ jobs:
             -x "*.db" \
             -x "*.sqlite3"
 
-      - name: Create GitHub Release
+      - name: create github release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.get_version.outputs.version }}

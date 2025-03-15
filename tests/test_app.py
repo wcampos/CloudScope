@@ -1,17 +1,21 @@
+"""Tests for the AWS Inventory Flask application."""
+
 import pytest
 from unittest.mock import patch
+from botocore.exceptions import ClientError
 from app import app, db
 from flask import url_for
 
 @pytest.fixture
 def client():
+    """Test client fixture for Flask application."""
     app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://test_user:test_password@localhost:5432/test_db'
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg://test_user:test_password@localhost:5432/test_db'
     
-    with app.test_client() as client:
+    with app.test_client() as test_client:
         with app.app_context():
             db.create_all()
-            yield client
+            yield test_client
             db.session.remove()
             db.drop_all()
 
@@ -37,6 +41,7 @@ def test_version_info(client):
 @patch('src.aws_classes.Alb.describe_target_groups')
 @patch('src.aws_classes.Alb.describe_loadbalancers')
 def test_alb_route(mock_lb, mock_tg, client):
+    """Test ALB route with mocked AWS responses."""
     # Mock the AWS responses
     mock_tg.return_value = [{'Name': 'test-tg'}]
     mock_lb.return_value = [{'Name': 'test-lb'}]
@@ -46,6 +51,7 @@ def test_alb_route(mock_lb, mock_tg, client):
 
 @patch('src.aws_classes.DynamoDB.describe_dynamodb')
 def test_dynamodb_route(mock_dynamo, client):
+    """Test DynamoDB route with mocked AWS response."""
     # Mock the AWS response
     mock_dynamo.return_value = [{'Name': 'test-table'}]
     

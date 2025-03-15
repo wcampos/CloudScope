@@ -1,3 +1,10 @@
+"""AWS Inventory Flask Application.
+
+This module provides a web interface for managing AWS resources and profiles.
+It includes functionality for viewing AWS resources, managing profiles,
+and monitoring application settings.
+"""
+
 import os
 import logging
 from datetime import datetime
@@ -23,7 +30,7 @@ def get_database_url():
     db_port = os.environ.get('DB_PORT', '5432')
     db_name = os.environ.get('DB_NAME', 'awsprofiles')
     
-    return f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+    return f"postgresql+psycopg://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
 
 app = Flask(__name__)
 
@@ -65,6 +72,7 @@ except SQLAlchemyError as e:
     raise
 
 def handle_aws_error(func):
+    """Decorator to handle AWS-related errors in routes."""
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
@@ -85,10 +93,12 @@ def handle_aws_error(func):
 
 @app.template_filter('now')
 def now_filter(format='%Y'):
+    """Template filter to format current datetime."""
     return datetime.now().strftime(format)
 
 @app.template_filter('datetime')
 def datetime_filter(value, format_string='%Y-%m-%d %H:%M:%S'):
+    """Template filter to format datetime objects."""
     if value is None:
         return ''
     return value.strftime(format_string)

@@ -1,4 +1,4 @@
-name: Tests
+name: tests
 
 on:
   push:
@@ -28,19 +28,33 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python 3.13
+    - name: set up python 3.13
       uses: actions/setup-python@v5
       with:
         python-version: '3.13'
 
-    - name: Install dependencies
+    - name: install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install psycopg[binary]>=3.1.18
+        # Install SQLAlchemy and psycopg first
+        pip install 'SQLAlchemy>=2.0.0'
+        pip install 'psycopg[binary,pool]>=3.1.18'
+        # Then install other dependencies
         pip install -r requirements.txt
         pip install pytest pytest-cov
 
-    - name: Run tests
+    - name: verify database connection
+      env:
+        FLASK_ENV: testing
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: test_db
+        DB_USER: test_user
+        DB_PASSWORD: test_password
+      run: |
+        python -c "from sqlalchemy import create_engine; engine = create_engine('postgresql+psycopg://test_user:test_password@localhost:5432/test_db'); engine.connect()"
+
+    - name: run tests
       env:
         FLASK_ENV: testing
         DB_HOST: localhost
@@ -52,7 +66,7 @@ jobs:
       run: |
         pytest tests/ --cov=./ --cov-report=xml
 
-    - name: Upload coverage to Codecov
+    - name: upload coverage
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
