@@ -1,327 +1,340 @@
 import boto3
+import logging
+from typing import List, Dict, Any
+from botocore.exceptions import ClientError
+from functools import wraps
+from src.models import AWSProfile
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-class Alb:
+def aws_error_handler(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except ClientError as e:
+            logger.error(f"AWS API error in {func.__name__}: {str(e)}")
+            return []
+        except Exception as e:
+            logger.error(f"Unexpected error in {func.__name__}: {str(e)}")
+            return []
+    return wrapper
+
+class AWSBase:
+    def __init__(self, service_name: str):
+        self.profile = AWSProfile.get_active_profile()
+        if self.profile:
+            self.session = boto3.Session(
+                aws_access_key_id=self.profile.aws_access_key_id,
+                aws_secret_access_key=self.profile.aws_secret_access_key,
+                aws_session_token=self.profile.aws_session_token,
+                region_name=self.profile.aws_region
+            )
+            self.client = self.session.client(service_name)
+        else:
+            raise ValueError("No active AWS profile found")
+        
+        self.logger = logging.getLogger(f"aws_inventory.{service_name}")
+
+    def _extract_tags(self, tags: List[Dict[str, str]], default: str = 'empty') -> Dict[str, str]:
+        result = {'Name': default, 'Environment': default}
+        if tags:
+            for tag in tags:
+                if tag['Key'] == 'Name':
+                    result['Name'] = tag['Value']
+                elif tag['Key'] == 'Env':
+                    result['Environment'] = tag['Value']
+        return result
+
+class Alb(AWSBase):
     def __init__(self):
-        self.client = boto3.client("elbv2")
+        super().__init__("elbv2")
 
-    def describe_target_groups(self):
+    @aws_error_handler
+    def describe_target_groups(self) -> List[Dict[str, Any]]:
         target_data = self.client.describe_target_groups()
-        idict = {}
         ilist = []
+        
         for target in target_data['TargetGroups']:
-            tg_name = target['TargetGroupName']
-            tg_prot = target['Protocol']
-            tg_port = target['Port']
-            tg_vpcn = target['VpcId']
-            tg_type = target['TargetType']
-            tg_albn = target['LoadBalancerArns']
-            tg_hcpl = target['HealthCheckProtocol']
-            tg_hcpt = target['HealthCheckPort']
-            if 'HealthCheckPath' in target:
-                tg_hcph = target['HealthCheckPath']
-            else:
-                tg_hcph = 'unknown'
-            if 'Matcher' in target:
-                tg_hcmt = target['Matcher']['HttpCode']
-            else:
-                tg_hcmt = 'unknown'
-            idict.update({
-                'Name': tg_name,
-                'Protocol': tg_prot,
-                'Port': tg_port,
-                'Type': tg_type,
-                'Vpc Id': tg_vpcn,
-                'LB Arn': tg_albn,
-                'Health Check Protocol': tg_hcpl,
-                'Health Check Port': tg_hcpt,
-                'Health Check Path': tg_hcph,
-                'Health Check HTTP Matcher': tg_hcmt
-            })
-            ilist.append(idict.copy())
-        sortedlist = sorted(ilist, key=lambda i: i['Name'])
-        return sortedlist
+            idict = {
+                'Name': target['TargetGroupName'],
+                'Protocol': target['Protocol'],
+                'Port': target['Port'],
+                'Type': target['TargetType'],
+                'Vpc Id': target['VpcId'],
+                'LB Arn': target['LoadBalancerArns'],
+                'Health Check Protocol': target['HealthCheckProtocol'],
+                'Health Check Port': target['HealthCheckPort'],
+                'Health Check Path': target.get('HealthCheckPath', 'unknown'),
+                'Health Check HTTP Matcher': target.get('Matcher', {}).get('HttpCode', 'unknown')
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Name'])
 
-    def describe_loadbalancers(self):
+    @aws_error_handler
+    def describe_loadbalancers(self) -> List[Dict[str, Any]]:
         lb_data = self.client.describe_load_balancers()
-        idict = {}
         ilist = []
+        
         for loadbalancer in lb_data['LoadBalancers']:
-            lb_name = loadbalancer['LoadBalancerName']
-            lb_scheme = loadbalancer['Scheme']
-            lb_state = loadbalancer['State']['Code']
-            lb_type = loadbalancer['Type']
-            lb_lbtp = loadbalancer['IpAddressType']
-            lb_arn = loadbalancer['LoadBalancerArn']
-            lb_dns_name = loadbalancer['DNSName']
-            idict.update({
-                'Name': lb_name,
-                'Scheme': lb_scheme,
-                'State': lb_state,
-                'Type': lb_type,
-                'IpAddressType': lb_lbtp,
-                'Arn': lb_arn,
-                'DNS Name': lb_dns_name
-            })
-            ilist.append(idict.copy())
-        sortedlist = sorted(ilist, key=lambda i: i['Name'])
-        return sortedlist
+            idict = {
+                'Name': loadbalancer['LoadBalancerName'],
+                'Scheme': loadbalancer['Scheme'],
+                'State': loadbalancer['State']['Code'],
+                'Type': loadbalancer['Type'],
+                'IpAddressType': loadbalancer['IpAddressType'],
+                'Arn': loadbalancer['LoadBalancerArn'],
+                'DNS Name': loadbalancer['DNSName']
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Name'])
 
-
-class AwsLambda:
+class AwsLambda(AWSBase):
     def __init__(self):
-        self.client = boto3.client("lambda")
+        super().__init__("lambda")
 
-    def describe_lambda(self):
+    @aws_error_handler
+    def describe_lambda(self) -> List[Dict[str, Any]]:
         ld_data = self.client.list_functions()
-
-        idict = {}
         ilist = []
+        
         for ld_func in ld_data['Functions']:
-            ld_name = ld_func['FunctionName']
-            ld_rntm = ld_func['Runtime']
-            ld_hdlr = ld_func['Handler']
-            ld_mmsz = ld_func['MemorySize']
-            ld_strg = ld_func['EphemeralStorage']['Size']
-            ld_pktp = ld_func['PackageType']
-            ld_mftm = ld_func['LastModified']
-            idict.update({
-                'Name': ld_name,
-                'Runtime': ld_rntm,
-                'Handler': ld_hdlr,
-                'Memory': ld_mmsz,
-                'Storage Size': ld_strg,
-                'Package Type': ld_pktp,
-                'Last Modified': ld_mftm
-            })
-            ilist.append(idict.copy())
-        sortedlist = sorted(ilist, key=lambda i: i['Name'])
-        return sortedlist
+            idict = {
+                'Name': ld_func['FunctionName'],
+                'Runtime': ld_func['Runtime'],
+                'Handler': ld_func['Handler'],
+                'Memory': ld_func['MemorySize'],
+                'Storage Size': ld_func['EphemeralStorage']['Size'],
+                'Package Type': ld_func['PackageType'],
+                'Last Modified': ld_func['LastModified']
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Name'])
 
-
-class DynamoDB:
+class DynamoDB(AWSBase):
     def __init__(self):
-        self.client = boto3.client("dynamodb")
+        super().__init__("dynamodb")
 
-    def describe_dynamodb(self):
+    @aws_error_handler
+    def describe_dynamodb(self) -> List[Dict[str, Any]]:
         dyn_data = self.client.list_tables()
-        idict = {}
-        ilist = []
-        for dynamo in dyn_data['TableNames']:
-            dy_name = dynamo
-            idict.update({
-                'Name': dy_name
-            })
-            ilist.append(idict.copy())
-        sortedlist = sorted(ilist, key=lambda i: i['Name'])
-        return sortedlist
+        return [{'Name': table_name} for table_name in dyn_data['TableNames']]
 
-
-class Ec2:
+class Ec2(AWSBase):
     def __init__(self):
-        self.client = boto3.client("ec2")
+        super().__init__("ec2")
 
-    def describe_ec2(self):
+    @aws_error_handler
+    def describe_ec2(self) -> List[Dict[str, Any]]:
         ec2_data = self.client.describe_instances()
-        idict = {}
         ilist = []
-        for reservations in ec2_data['Reservations']:
-            for instance in reservations['Instances']:
-                if 'Tags' in instance:
-                    for tag in instance['Tags']:
-                        if tag['Key'] == 'Name':
-                            name = tag['Value']
-                        elif "Env" in tag['Key']:
-                            env = tag['Value']
-                else:
-                    name = 'empty'
-                    env = 'empty'
-            instance_id = instance['InstanceId']
-            instance_type = instance['InstanceType']
-            instance_vpc = instance['VpcId']
-            subnet_id = instance['SubnetId']
-            for sec_group in instance['SecurityGroups']:
-                sg_id = sec_group['GroupId']
-            iam_instance_profile = instance['IamInstanceProfile']['Arn']
-            launch_time = instance['LaunchTime']
-            private_ip = instance['PrivateIpAddress']
-            state = instance['State']['Name']
-            platform = instance['PlatformDetails']
-            idict.update({
-                'Name': name,
-                'Environment': env,
-                'Instance Id': instance_id,
-                'Instance Type': instance_type,
-                'Vpc Id': instance_vpc,
-                'Subnet Id': subnet_id,
-                'Security Group': sg_id,
-                'IAM Instance profile': iam_instance_profile.split("/", 1)[-1],
-                'Lauched Time': launch_time,
-                'Private IP': private_ip,
-                'State': state,
-                'OS Family': platform
-            })
-            ilist.append(idict.copy())
-        sortedlist = sorted(ilist, key=lambda i: i['Name'])
-        return sortedlist
+        
+        for reservation in ec2_data['Reservations']:
+            for instance in reservation['Instances']:
+                tags = self._extract_tags(instance.get('Tags', []))
+                
+                idict = {
+                    'Name': tags['Name'],
+                    'Environment': tags['Environment'],
+                    'Instance Id': instance['InstanceId'],
+                    'Instance Type': instance['InstanceType'],
+                    'Vpc Id': instance['VpcId'],
+                    'Subnet Id': instance['SubnetId'],
+                    'Security Group': instance['SecurityGroups'][0]['GroupId'],
+                    'IAM Instance profile': instance['IamInstanceProfile']['Arn'].split("/", 1)[-1],
+                    'Lauched Time': instance['LaunchTime'],
+                    'Private IP': instance['PrivateIpAddress'],
+                    'State': instance['State']['Name'],
+                    'OS Family': instance['PlatformDetails']
+                }
+                ilist.append(idict)
+                
+        return sorted(ilist, key=lambda i: i['Name'])
 
-    def describe_vpcs(self):
+    @aws_error_handler
+    def describe_vpcs(self) -> List[Dict[str, Any]]:
         vpc_data = self.client.describe_vpcs()
-        idict = {}
         ilist = []
+        
         for vpc in vpc_data['Vpcs']:
-            if 'Tags' in vpc:
-                for tag in vpc['Tags']:
-                    if "Name" in tag['Key']:
-                        vpc_name = tag['Value']
-                    elif "Env" in tag['Key']:
-                        vpc_env = tag['Value']
-            else:
-                vpc_name = 'empty'
-                vpc_env = 'empty'
-            vpc_id = vpc['VpcId']
-            vpc_cidr = vpc['CidrBlock']
-            idict.update({
-                'VPC Name': vpc_name,
-                'Environment': vpc_env,
-                'VPC Id': vpc_id,
-                'VPC Cidr Block': vpc_cidr
-            })
-            ilist.append(idict.copy())
-        sortedlist = sorted(ilist, key=lambda i: i['VPC Name'])
-        return sortedlist
+            tags = self._extract_tags(vpc.get('Tags', []))
+            
+            idict = {
+                'VPC Name': tags['Name'],
+                'Environment': tags['Environment'],
+                'VPC Id': vpc['VpcId'],
+                'VPC Cidr Block': vpc['CidrBlock']
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['VPC Name'])
 
-    def describe_subnets(self):
+    @aws_error_handler
+    def describe_subnets(self) -> List[Dict[str, Any]]:
         sn_data = self.client.describe_subnets()
-        idict = {}
         ilist = []
+        
         for subnet in sn_data['Subnets']:
-            if 'Tags' in subnet:
-                for tag in subnet['Tags']:
-                    if "Name" in tag['Key']:
-                        sn_name = tag['Value']
-                    elif "Env" in tag['Key']:
-                        sn_env = tag['Value']
-            else:
-                sn_name = 'empty'
-                sn_env = 'empty'
-            sn_id = subnet['SubnetId']
-            sn_cidr = subnet['CidrBlock']
-            sn_vpc = subnet['VpcId']
-            sn_az = subnet['AvailabilityZone']
-            idict.update({
-                'Subnet Name': sn_name,
-                'Environment': sn_env,
-                'Subnet Id': sn_id,
-                'Subnet Cidr Block': sn_cidr,
-                'VpcId': sn_vpc,
-                'AvailabilityZone': sn_az
-            })
-            ilist.append(idict.copy())
-        sortedlist = sorted(ilist, key=lambda i: i['Subnet Name'])
-        return sortedlist
+            tags = self._extract_tags(subnet.get('Tags', []))
+            
+            idict = {
+                'Subnet Name': tags['Name'],
+                'Environment': tags['Environment'],
+                'Subnet Id': subnet['SubnetId'],
+                'Subnet Cidr Block': subnet['CidrBlock'],
+                'VpcId': subnet['VpcId'],
+                'AvailabilityZone': subnet['AvailabilityZone']
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Subnet Name'])
 
-    def describe_security_groups(self):
+    @aws_error_handler
+    def describe_security_groups(self) -> List[Dict[str, Any]]:
         sg_data = self.client.describe_security_groups()
-        idict = {}
         ilist = []
+        
         for sec_grp in sg_data['SecurityGroups']:
-            sg_name = sec_grp['GroupName']
-            sg_id = sec_grp['GroupId']
-            sg_vpc = sec_grp['VpcId']
-            sg_dpto = sec_grp['Description']
-            idict.update({
-                'Name': sg_name,
-                'Id': sg_id,
-                'VPC': sg_vpc,
-                'Description': sg_dpto
-            })
-            ilist.append(idict.copy())
-        sortedlist = sorted(ilist, key=lambda i: i['Name'])
-        return sortedlist
+            idict = {
+                'Name': sec_grp['GroupName'],
+                'Id': sec_grp['GroupId'],
+                'VPC': sec_grp['VpcId'],
+                'Description': sec_grp['Description']
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Name'])
 
-    def describe_security_group_rules(self):
+    @aws_error_handler
+    def describe_security_group_rules(self) -> List[Dict[str, Any]]:
         rules_data = self.client.describe_security_group_rules()
-        idict = {}
         ilist = []
+        
         for rule in rules_data['SecurityGroupRules']:
-            rl_sgid = rule['GroupId']
-            rl_grid = rule['SecurityGroupRuleId']
-            if rule['IsEgress'] == 'True':
-                rl_type = 'Egress'
-            else:
-                rl_type = 'Ingress'
-            rl_prot = rule['IpProtocol']
-            rl_from = rule['FromPort']
-            rl_to = rule['ToPort']
-            if "CidrIpv4" in rule:
-                rl_cidr = rule['CidrIpv4']
-            elif "CidrIpv6" in rule:
-                rl_cidr = rule['CidrIpv6']
-            else:
-                rl_cidr = rule['ReferencedGroupInfo']['GroupId']
-            if "Description" in rule:
-                rl_dpto = rule['Description']
-            else:
-                rl_dpto = 'No Description'
-            idict.update({
-                'Group Id': rl_sgid,
-                'Rule Id': rl_grid,
-                'Type': rl_type,
-                'Protocol': rl_prot,
-                'From Port': rl_from,
-                'To Port': rl_to,
-                'Cidr': rl_cidr,
-                'Description': rl_dpto
-            })
-            ilist.append(idict.copy())
-        sortedlist = sorted(ilist, key=lambda i: i['Group Id'])
-        return sortedlist
+            direction = 'Egress' if rule['IsEgress'] else 'Ingress'
+            
+            idict = {
+                'Rule Id': rule['SecurityGroupRuleId'],
+                'Security Group': rule['GroupId'],
+                'Direction': direction,
+                'IP Protocol': rule.get('IpProtocol', 'all'),
+                'From Port': rule.get('FromPort', 'all'),
+                'To Port': rule.get('ToPort', 'all'),
+                'Cidr': rule.get('CidrIpv4', rule.get('CidrIpv6', 'N/A'))
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Rule Id'])
 
-
-class Rds:
+class Rds(AWSBase):
     def __init__(self):
-        self.client = boto3.client("rds")
+        super().__init__("rds")
 
-    def describe_rds(self):
+    @aws_error_handler
+    def describe_rds(self) -> List[Dict[str, Any]]:
         rds_data = self.client.describe_db_instances()
-        idict = {}
         ilist = []
-        for rds_db in rds_data['DBInstances']:
-            rds_name = rds_db['DBInstanceIdentifier']
-            rds_engn = rds_db['Engine']
-            rds_envs = rds_db['EngineVersion']
-            rds_mazs = rds_db['MultiAZ']
-            rds_inst = rds_db['DBInstanceClass']
-            rds_cttm = rds_db['InstanceCreateTime']
-            idict.update({
-                'Name': rds_name,
-                'Engine': rds_engn,
-                'Version': rds_envs,
-                'MultiAz': rds_mazs,
-                'Instance Type': rds_inst,
-                'Creation Time': rds_cttm
-            })
-            ilist.append(idict.copy())
-        sortedlist = sorted(ilist, key=lambda i: i['Name'])
-        return sortedlist
+        
+        for rds_instance in rds_data['DBInstances']:
+            idict = {
+                'Name': rds_instance['DBInstanceIdentifier'],
+                'Engine': rds_instance['Engine'],
+                'Version': rds_instance['EngineVersion'],
+                'Size': rds_instance['DBInstanceClass'],
+                'Storage': rds_instance['AllocatedStorage'],
+                'Status': rds_instance['DBInstanceStatus'],
+                'Endpoint': rds_instance['Endpoint']['Address'],
+                'Port': rds_instance['Endpoint']['Port']
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Name'])
 
-
-class S3:
+class S3(AWSBase):
     def __init__(self):
-        self.client = boto3.client("s3")
+        super().__init__("s3")
 
-    def describe_s3(self):
+    @aws_error_handler
+    def describe_s3(self) -> List[Dict[str, Any]]:
         s3_data = self.client.list_buckets()
-        idict = {}
         ilist = []
+        
         for bucket in s3_data['Buckets']:
-            bk_name = bucket['Name']
-            bk_crtm = bucket['CreationDate']
-            idict.update({
-                'Name': bk_name,
-                'Creation Date': bk_crtm
-            })
-            ilist.append(idict.copy())
-        sortedlist = sorted(ilist, key=lambda i: i['Name'])
-        return sortedlist
+            try:
+                location = self.client.get_bucket_location(Bucket=bucket['Name'])
+                region = location['LocationConstraint'] or 'us-east-1'
+            except ClientError:
+                region = 'unknown'
+            
+            idict = {
+                'Name': bucket['Name'],
+                'Creation Date': bucket['CreationDate'],
+                'Region': region
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Name'])
+
+class CommonAWSServices(AWSBase):
+    """Class to handle common AWS services operations"""
+    
+    def __init__(self):
+        super().__init__("ec2")  # We'll use EC2 as the default service
+        self.ec2 = Ec2()
+        self.rds = Rds()
+        self.s3 = S3()
+        self.lambda_client = AwsLambda()
+        self.dynamodb = DynamoDB()
+        self.alb = Alb()
+
+    def get_all_resources(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get all AWS resources"""
+        return {
+            'EC2 Instances': self.ec2.describe_ec2(),
+            'RDS Instances': self.rds.describe_rds(),
+            'S3 Buckets': self.s3.describe_s3(),
+            'Lambda Functions': self.lambda_client.describe_lambda(),
+            'DynamoDB Tables': self.dynamodb.describe_dynamodb(),
+            'Load Balancers': self.alb.describe_loadbalancers(),
+            'Security Groups': self.ec2.describe_security_groups(),
+            'Security Group Rules': self.ec2.describe_security_group_rules()
+        }
+
+    def get_network_resources(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get network-related resources"""
+        return {
+            'VPCs': self.ec2.describe_vpcs(),
+            'Subnets': self.ec2.describe_subnets(),
+            'Security Groups': self.ec2.describe_security_groups(),
+            'Security Group Rules': self.ec2.describe_security_group_rules(),
+            'Load Balancers': self.alb.describe_loadbalancers()
+        }
+
+    def get_compute_resources(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get compute-related resources"""
+        return {
+            'EC2 Instances': self.ec2.describe_ec2(),
+            'Lambda Functions': self.lambda_client.describe_lambda()
+        }
+
+    def get_storage_resources(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get storage-related resources"""
+        return {
+            'S3 Buckets': self.s3.describe_s3(),
+            'RDS Instances': self.rds.describe_rds(),
+            'DynamoDB Tables': self.dynamodb.describe_dynamodb()
+        }
+
+    def get_service_resources(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get service-related resources"""
+        return {
+            'Load Balancers': self.alb.describe_loadbalancers(),
+            'Target Groups': self.alb.describe_target_groups(),
+            'Lambda Functions': self.lambda_client.describe_lambda(),
+            'DynamoDB Tables': self.dynamodb.describe_dynamodb()
+        }
