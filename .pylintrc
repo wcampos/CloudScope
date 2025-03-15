@@ -1,23 +1,64 @@
-[pylint]
-ignore=
-    migrations,
-    manage.py,
-    __init__.py,
-    apps.py,
-    admin.py,
-    models.py,
-    serializers.py,
-    urls.py,
-disable=
-    import-error,
-    missing-module-docstring,
-    missing-function-docstring,
-    missing-class-docstring,
-    no-self-argument,
-    no-member,
-    undefined-loop-variable,
-    no-value-for-parameter,
-    invalid-name,
-    pointless-string-statement,
-    too-few-public-methods,
-    too-many-locals
+[MASTER]
+# Add the src directory to the Python path
+init-hook='import sys; sys.path.append(".")'
+
+# Use multiple processes to speed up Pylint
+jobs=0
+
+# List of plugins to load
+load-plugins=
+
+# Allow loading modules/packages from top level directory
+ignore=CVS,venv,.git,__pycache__
+
+[MESSAGES CONTROL]
+# Disable specific warnings
+disable=C0111,  # missing-docstring
+        C0103,  # invalid-name
+        C0303,  # trailing-whitespace
+        W0511,  # fixme
+        R0903,  # too-few-public-methods
+        R0913,  # too-many-arguments
+        W0621,  # redefined-outer-name
+        W0703,  # broad-except
+        R0914,  # too-many-locals
+        R0915   # too-many-statements
+
+[FORMAT]
+# Maximum number of characters on a single line
+max-line-length=120
+
+# Maximum number of lines in a module
+max-module-lines=2000
+
+[BASIC]
+# Regular expression which should only match function or class names
+function-rgx=[a-z_][a-z0-9_]{2,50}$
+class-rgx=[A-Z_][a-zA-Z0-9_]+$
+argument-rgx=[a-z_][a-z0-9_]{2,30}$
+variable-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Good variable names
+good-names=i,j,k,ex,Run,_,id,db
+
+[SIMILARITIES]
+# Minimum lines number of a similarity
+min-similarity-lines=7
+
+# Ignore imports when computing similarities
+ignore-imports=yes
+
+[TYPECHECK]
+# List of module names for which member attributes should not be checked
+ignored-modules=numpy,tensorflow,torch,cv2,pygame
+
+# List of classes names for which member attributes should not be checked
+ignored-classes=SQLObject,SQLAlchemy,scoped_session
+
+[MISCELLANEOUS]
+# List of note tags to take into consideration
+notes=FIXME,XXX,TODO
+
+[IMPORTS]
+# Allow wildcard imports from modules that define __all__
+allow-wildcard-with-all=no

@@ -1,0 +1,74 @@
+name: tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: set up python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Install SQLAlchemy and psycopg first
+        pip install 'SQLAlchemy>=2.0.0'
+        pip install 'psycopg[binary,pool]>=3.1.18'
+        # Then install other dependencies
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-github-actions-annotate-failures
+
+    - name: verify database connection
+      env:
+        FLASK_ENV: testing
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: test_db
+        DB_USER: test_user
+        DB_PASSWORD: test_password
+      run: |
+        python -c "from sqlalchemy import create_engine; engine = create_engine('postgresql+psycopg://test_user:test_password@localhost:5432/test_db'); engine.connect()"
+
+    - name: run tests
+      env:
+        FLASK_ENV: testing
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: test_db
+        DB_USER: test_user
+        DB_PASSWORD: test_password
+        SECRET_KEY: test_key
+      run: |
+        pytest tests/ --cov=./ --cov-report=html --cov-report=term
+
+    - name: archive code coverage results
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-coverage-report
+        path: htmlcov/
+        retention-days: 7 

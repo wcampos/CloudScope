@@ -1,21 +1,58 @@
-<link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/styles.css') }}">
-<html>
-<head>
-  <title>HOME</title>
-</head>
-<body>
+{% extends "base.html.j2" %}
 
-<div class="topnav">
-  <a class="active" href="/">Home</a>
-  <a href="alb">Alb</a>
-  <a href="dynamodb">DynamoDB</a>
-  <a href="ec2">Ec2</a>
-  <a href="lambda">Lambda</a>
-  <a href="networks">Networks</a>
-  <a href="rds">Databases</a>
-  <a href="s3">S3</a>
-  <a href="sgs">SecurityGroups</a>
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="jumbotron">
+    <h1 class="display-4">Welcome to AWS Inventory</h1>
+    <p class="lead">A simple tool to view and manage your AWS resources.</p>
+    <hr class="my-4">
+    {% if active_profile %}
+    <p>Currently using profile: <strong>{{ active_profile.name }}</strong> ({{ active_profile.aws_region }})</p>
+    {% else %}
+    <div class="alert alert-warning">
+        <h4 class="alert-heading">No Active AWS Profile</h4>
+        <p>You need to set up and select an AWS profile before you can view AWS resources.</p>
+        <hr>
+        <p class="mb-0">
+            <a href="{{ url_for('profiles') }}" class="btn btn-warning">Set Up AWS Profile</a>
+        </p>
+    </div>
+    {% endif %}
 </div>
 
-</body>
-</html>
+{% if active_profile %}
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Compute</h5>
+                <p class="card-text">View EC2 instances and Lambda functions.</p>
+                <a href="/ec2" class="btn btn-primary">View EC2</a>
+                <a href="/lambda" class="btn btn-secondary">View Lambda</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Storage</h5>
+                <p class="card-text">View S3 buckets and DynamoDB tables.</p>
+                <a href="/s3" class="btn btn-primary">View S3</a>
+                <a href="/dynamodb" class="btn btn-secondary">View DynamoDB</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Networking</h5>
+                <p class="card-text">View VPCs, subnets, and security groups.</p>
+                <a href="/networks" class="btn btn-primary">View Networks</a>
+                <a href="/sgs" class="btn btn-secondary">View Security Groups</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

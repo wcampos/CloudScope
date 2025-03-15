@@ -1,0 +1,124 @@
+{% extends "base.html.j2" %}
+
+{% block title %}AWS Profiles{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">AWS Profiles</h1>
+
+    <!-- Profile Selection -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Active Profile</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('set_active_profile') }}" class="mb-3">
+                <div class="row align-items-end">
+                    <div class="col">
+                        <label for="profile_id" class="form-label">Select Profile</label>
+                        <select name="profile_id" id="profile_id" class="form-select">
+                            <option value="">No Profile Selected</option>
+                            {% for profile in profiles %}
+                            <option value="{{ profile.id }}" {% if profile.is_active %}selected{% endif %}>
+                                {{ profile.name }} ({{ profile.aws_region }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary">Set Active</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add New Profile -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Add New Profile</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('add_profile') }}">
+                <div class="mb-3">
+                    <label for="name" class="form-label">Profile Name</label>
+                    <input type="text" class="form-control" id="name" name="name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="aws_access_key_id" class="form-label">AWS Access Key ID</label>
+                    <input type="text" class="form-control" id="aws_access_key_id" name="aws_access_key_id" required>
+                </div>
+                <div class="mb-3">
+                    <label for="aws_secret_access_key" class="form-label">AWS Secret Access Key</label>
+                    <input type="password" class="form-control" id="aws_secret_access_key" name="aws_secret_access_key" required>
+                </div>
+                <div class="mb-3">
+                    <label for="aws_session_token" class="form-label">AWS Session Token (Optional)</label>
+                    <textarea class="form-control" id="aws_session_token" name="aws_session_token" rows="3" placeholder="Enter your temporary session token if using temporary credentials"></textarea>
+                    <div class="form-text">Required only when using temporary credentials (e.g., from AWS STS)</div>
+                </div>
+                <div class="mb-3">
+                    <label for="aws_region" class="form-label">AWS Region</label>
+                    <select class="form-select" id="aws_region" name="aws_region" required>
+                        <option value="us-east-1">US East (N. Virginia)</option>
+                        <option value="us-east-2">US East (Ohio)</option>
+                        <option value="us-west-1">US West (N. California)</option>
+                        <option value="us-west-2">US West (Oregon)</option>
+                        <option value="eu-west-1">EU (Ireland)</option>
+                        <option value="eu-central-1">EU (Frankfurt)</option>
+                        <option value="ap-southeast-1">Asia Pacific (Singapore)</option>
+                        <option value="ap-southeast-2">Asia Pacific (Sydney)</option>
+                        <option value="ap-northeast-1">Asia Pacific (Tokyo)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-success">Add Profile</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Profile List -->
+    {% if profiles %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Existing Profiles</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Region</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for profile in profiles %}
+                        <tr>
+                            <td>{{ profile.name }}</td>
+                            <td>{{ profile.aws_region }}</td>
+                            <td>
+                                {% if profile.is_active %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ profile.created_at|datetime }}</td>
+                            <td>
+                                <form method="POST" action="{{ url_for('delete_profile', profile_id=profile.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this profile?')">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

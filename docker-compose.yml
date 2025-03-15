@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5001:5000"
+    volumes:
+      - app_data:/app/data
+      - app_logs:/app/logs
+      - app_static:/app/static
+      - app_uploads:/app/uploads
+      - .:/app
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql+psycopg://awsuser:awspass@db:5432/awsprofiles
+      - POSTGRES_USER=awsuser
+      - POSTGRES_PASSWORD=awspass
+      - POSTGRES_DB=awsprofiles
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=awsuser
+      - POSTGRES_PASSWORD=awspass
+      - POSTGRES_DB=awsprofiles
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - postgres_backups:/var/lib/postgresql/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U awsuser -d awsprofiles"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrations:
+    build:
+      context: ./migrations
+      dockerfile: Dockerfile
+    environment:
+      - POSTGRES_USER=awsuser
+      - POSTGRES_PASSWORD=awspass
+      - POSTGRES_DB=awsprofiles
+    volumes:
+      - ./migrations:/migrations
+      - postgres_backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["psql", "-h", "db", "-U", "awsuser", "-d", "awsprofiles", "-f", "/docker-entrypoint-initdb.d/init.sql"]
+
+volumes:
+  # Application volumes
+  app_data:
+    name: aws_inventory_app_data
+  app_logs:
+    name: aws_inventory_app_logs
+  app_static:
+    name: aws_inventory_app_static
+  app_uploads:
+    name: aws_inventory_app_uploads
+  
+  # Database volumes
+  postgres_data:
+    name: aws_inventory_postgres_data
+  postgres_backups:
+    name: aws_inventory_postgres_backups 

@@ -1,0 +1,44 @@
+{% extends "base.html.j2" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-6">Application Settings</h1>
+    
+    <div class="bg-white shadow rounded-lg p-6">
+        <div class="grid grid-cols-1 gap-6">
+            <!-- Version Information -->
+            <div class="border-b pb-4">
+                <h2 class="text-lg font-semibold mb-4">Version Information</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="text-gray-600">Application Version</div>
+                    <div>{{ version }}</div>
+                </div>
+            </div>
+
+            <!-- Environment Information -->
+            <div class="border-b pb-4">
+                <h2 class="text-lg font-semibold mb-4">Environment</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="text-gray-600">Flask Environment</div>
+                    <div>{{ flask_env }}</div>
+                    <div class="text-gray-600">Debug Mode</div>
+                    <div>{{ debug_mode }}</div>
+                </div>
+            </div>
+
+            <!-- Database Information -->
+            <div>
+                <h2 class="text-lg font-semibold mb-4">Database Configuration</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="text-gray-600">Database Host</div>
+                    <div>{{ db_host }}</div>
+                    <div class="text-gray-600">Database Name</div>
+                    <div>{{ db_name }}</div>
+                    <div class="text-gray-600">Database Port</div>
+                    <div>{{ db_port }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
