@@ -28,10 +28,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: set up python 3.13
+    - name: set up python 3.12
       uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
+        python-version: '3.12'
 
     - name: install dependencies
       run: |
@@ -41,7 +41,7 @@ jobs:
         pip install 'psycopg[binary,pool]>=3.1.18'
         # Then install other dependencies
         pip install -r requirements.txt
-        pip install pytest pytest-cov
+        pip install pytest pytest-cov pytest-github-actions-annotate-failures
 
     - name: verify database connection
       env:
@@ -64,10 +64,11 @@ jobs:
         DB_PASSWORD: test_password
         SECRET_KEY: test_key
       run: |
-        pytest tests/ --cov=./ --cov-report=xml
+        pytest tests/ --cov=./ --cov-report=html --cov-report=term
 
-    - name: upload coverage
-      uses: codecov/codecov-action@v4
+    - name: archive code coverage results
+      uses: actions/upload-artifact@v4
       with:
-        file: ./coverage.xml
-        fail_ci_if_error: true 
+        name: code-coverage-report
+        path: htmlcov/
+        retention-days: 7 
