@@ -26,7 +26,7 @@ def aws_profile(app):
         db.session.commit()
 
 @patch('boto3.Session.client')
-def test_alb_describe_target_groups(mock_boto3_client, app, _):  # pylint: disable=unused-argument
+def test_alb_describe_target_groups(mock_boto3_client, app, aws_profile):
     """Test ALB target groups description."""
     # Mock response data
     mock_response = {
@@ -60,7 +60,7 @@ def test_alb_describe_target_groups(mock_boto3_client, app, _):  # pylint: disab
     assert result[0]['Port'] == 80
 
 @patch('boto3.Session.client')
-def test_dynamodb_describe_tables(mock_boto3_client, app, _):  # pylint: disable=unused-argument
+def test_dynamodb_describe_tables(mock_boto3_client, app, aws_profile):
     """Test DynamoDB tables description."""
     # Mock response data
     mock_response = {
@@ -82,7 +82,7 @@ def test_dynamodb_describe_tables(mock_boto3_client, app, _):  # pylint: disable
     assert result[1]['Name'] == 'table2'
 
 @patch('boto3.Session.client')
-def test_ec2_describe_instances(mock_boto3_client, app, _):  # pylint: disable=unused-argument
+def test_ec2_describe_instances(mock_boto3_client, app, aws_profile):
     """Test EC2 instances description."""
     # Mock response data
     mock_response = {
@@ -122,7 +122,7 @@ def test_ec2_describe_instances(mock_boto3_client, app, _):  # pylint: disable=u
     assert result[0]['Instance Type'] == 't2.micro'
 
 @patch('boto3.Session.client')
-def test_error_handling(mock_boto3_client, app, _):  # pylint: disable=unused-argument
+def test_error_handling(mock_boto3_client, app, aws_profile):
     """Test AWS error handling."""
     # Setup mock to raise an error
     mock_client = Mock()
