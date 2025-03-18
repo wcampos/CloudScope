@@ -7,4 +7,5 @@ werkzeug==3.0.1
 jsonschema==4.21.1
 mistune==3.0.2
 PyYAML==6.0.1
-flasgger==0.9.5 
+flasgger==0.9.5
+redis==5.0.1 
