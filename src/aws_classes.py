@@ -1,5 +1,6 @@
 """AWS service classes for interacting with various AWS resources."""
 
+import json
 import logging
 from functools import wraps
 from typing import List, Dict, Any
@@ -29,17 +30,46 @@ def aws_error_handler(func):
 class AWSBase:
     def __init__(self, service_name: str):
         self.profile = AWSProfile.get_active_profile()
-        if self.profile:
-            self.session = boto3.Session(
-                aws_access_key_id=self.profile.aws_access_key_id,
-                aws_secret_access_key=self.profile.aws_secret_access_key,
-                aws_session_token=self.profile.aws_session_token,
-                region_name=self.profile.aws_region
-            )
-            self.client = self.session.client(service_name)
-        else:
+        if not self.profile:
             raise ValueError("No active AWS profile found")
-        
+
+        # Create initial session with user credentials
+        self.session = boto3.Session(
+            aws_access_key_id=self.profile.aws_access_key_id,
+            aws_secret_access_key=self.profile.aws_secret_access_key,
+            aws_session_token=self.profile.aws_session_token,
+            region_name=self.profile.aws_region
+        )
+
+        # Check if role assumption is configured
+        if self.profile.aws_session_token:
+            try:
+                role_config = json.loads(self.profile.aws_session_token)
+                if isinstance(role_config, dict) and 'RoleArn' in role_config:
+                    # Create STS client
+                    sts_client = self.session.client('sts')
+                    
+                    # Assume the role
+                    assumed_role = sts_client.assume_role(
+                        RoleArn=role_config['RoleArn'],
+                        RoleSessionName=role_config.get('RoleSessionName', 'aws_inventory_session')
+                    )
+                    
+                    # Create new session with temporary credentials
+                    self.session = boto3.Session(
+                        aws_access_key_id=assumed_role['Credentials']['AccessKeyId'],
+                        aws_secret_access_key=assumed_role['Credentials']['SecretAccessKey'],
+                        aws_session_token=assumed_role['Credentials']['SessionToken'],
+                        region_name=self.profile.aws_region
+                    )
+            except json.JSONDecodeError:
+                # If session_token is not JSON, use it as is (for regular session tokens)
+                pass
+            except Exception as e:
+                logger.error("Error assuming role: %s", str(e))
+                raise
+
+        self.client = self.session.client(service_name)
         self.logger = logging.getLogger(f"aws_inventory.{service_name}")
 
     def _extract_tags(self, tags: List[Dict[str, str]], default: str = 'empty') -> Dict[str, str]:

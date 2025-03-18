@@ -6,16 +6,18 @@ and monitoring application settings.
 """
 
 import os
+import json
 import logging
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from urllib.parse import quote_plus
 
 from botocore.exceptions import ClientError
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 from flask_migrate import Migrate
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
+import boto3
 
 from src.models import db, AWSProfile, SchemaVersion
 from src import aws_classes as awsc
@@ -122,16 +124,68 @@ def profiles():
 @app.route("/profiles/add", methods=['POST'])
 def add_profile():
     try:
+        # Handle role configuration
+        role_type = request.form.get('role_type', 'none')
+        session_token = None
+
+        if role_type == 'existing':
+            role_name = request.form.get('role_name')
+            if not role_name:
+                raise ValueError("Role name is required when using an existing role")
+            
+            # Create a temporary session to get the account ID
+            temp_session = boto3.Session(
+                aws_access_key_id=request.form['aws_access_key_id'],
+                aws_secret_access_key=request.form['aws_secret_access_key'],
+                region_name=request.form['aws_region']
+            )
+            
+            # Get the account ID using STS
+            sts_client = temp_session.client('sts')
+            account_id = sts_client.get_caller_identity()['Account']
+            
+            # Create role configuration
+            role_config = {
+                "RoleArn": f"arn:aws:iam::{account_id}:role/{role_name}",
+                "RoleSessionName": "aws_inventory_session"
+            }
+            session_token = json.dumps(role_config)
+            
+        elif role_type == 'custom':
+            session_token = request.form.get('aws_session_token')
+            if session_token:
+                try:
+                    # Validate JSON format
+                    role_config = json.loads(session_token)
+                    if isinstance(role_config, dict) and 'RoleArn' in role_config:
+                        # Validate role ARN format
+                        if not role_config['RoleArn'].startswith('arn:aws:iam::'):
+                            raise ValueError("Invalid role ARN format")
+                        if not role_config.get('RoleSessionName'):
+                            role_config['RoleSessionName'] = 'aws_inventory_session'
+                        session_token = json.dumps(role_config)
+                except json.JSONDecodeError:
+                    # If not JSON, use as regular session token
+                    pass
+        else:  # role_type == 'none'
+            # Handle optional direct session token
+            direct_token = request.form.get('direct_session_token')
+            if direct_token:
+                session_token = direct_token
+
         profile = AWSProfile(
             name=request.form['name'],
             aws_access_key_id=request.form['aws_access_key_id'],
             aws_secret_access_key=request.form['aws_secret_access_key'],
-            aws_session_token=request.form.get('aws_session_token'),
+            aws_session_token=session_token,
             aws_region=request.form['aws_region']
         )
         db.session.add(profile)
         db.session.commit()
         flash('Profile added successfully', 'success')
+    except ValueError as e:
+        db.session.rollback()
+        flash(f'Error adding profile: {str(e)}', 'error')
     except Exception as e:
         db.session.rollback()
         flash(f'Error adding profile: {str(e)}', 'error')
@@ -258,6 +312,11 @@ def settings():
         db_port=db_port,
         db_name=db_name
     )
+
+@app.route("/docs/aws_roles.md")
+def aws_roles_docs():
+    """Serve the AWS roles documentation."""
+    return send_from_directory('docs', 'aws_roles.md')
 
 @app.errorhandler(404)
 def not_found_error(_):
