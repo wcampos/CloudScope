@@ -24,19 +24,23 @@
                    class="btn btn-{{ 'primary' if current_view == 'network' else 'outline-primary' }}">
                     Network
                 </a>
+                <a href="{{ url_for('dashboard', view='services') }}"
+                   class="btn btn-{{ 'primary' if current_view == 'services' else 'outline-primary' }}">
+                    Services
+                </a>
             </div>
         </div>
     </div>
 
     {% for service_name, items in resources.items() %}
-    <div class="card mb-4 shadow-sm">
-        <div class="card-header bg-light">
-            <h2 class="h5 mb-0">{{ service_name }}</h2>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">{{ service_name }}</h5>
         </div>
         <div class="card-body">
             {% if items %}
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-striped">
                     <thead>
                         <tr>
                             {% for key in items[0].keys() %}
@@ -56,7 +60,7 @@
                 </table>
             </div>
             {% else %}
-            <p class="text-muted mb-0">No resources found.</p>
+            <p class="text-muted">No resources found.</p>
             {% endif %}
         </div>
     </div>

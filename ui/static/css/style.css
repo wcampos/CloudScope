@@ -1,0 +1,77 @@
+/* General styles */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+    padding: 2rem 0;
+}
+
+/* Navigation */
+.navbar {
+    margin-bottom: 2rem;
+}
+
+/* Tables */
+.table-responsive {
+    margin-bottom: 2rem;
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+/* Cards */
+.card {
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+}
+
+/* Alerts */
+.alert {
+    margin-bottom: 1rem;
+}
+
+/* Footer */
+.footer {
+    margin-top: auto;
+    padding: 1rem 0;
+    background-color: #f8f9fa;
+}
+
+/* Resource sections */
+.resource-section {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+}
+
+.resource-section h2 {
+    margin-bottom: 1rem;
+    color: #212529;
+}
+
+/* DataTables customization */
+.dataTables_wrapper {
+    padding: 1rem 0;
+}
+
+.dataTables_filter {
+    margin-bottom: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}

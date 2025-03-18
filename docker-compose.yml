@@ -1,8 +1,10 @@
 version: '3.8'
 
 services:
-  web:
-    build: .
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     ports:
       - "5001:5000"
     volumes:
@@ -10,18 +12,44 @@ services:
       - app_logs:/app/logs
       - app_static:/app/static
       - app_uploads:/app/uploads
-      - .:/app
+      - ./api:/app
     environment:
       - FLASK_ENV=development
       - DATABASE_URL=postgresql+psycopg://awsuser:awspass@db:5432/awsprofiles
       - POSTGRES_USER=awsuser
       - POSTGRES_PASSWORD=awspass
       - POSTGRES_DB=awsprofiles
+      - FLASK_APP=app.py
+      - FLASK_DEBUG=1
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./ui:/app
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=app.py
+      - FLASK_DEBUG=1
+      - API_BASE_URL=http://api:5000
+      - FLASK_SECRET_KEY=your-secret-key-here
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -46,19 +74,26 @@ services:
 
   migrations:
     build:
-      context: ./migrations
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api/Dockerfile
     environment:
+      - FLASK_APP=app.py
+      - DATABASE_URL=postgresql+psycopg://awsuser:awspass@db:5432/awsprofiles
+      - FLASK_ENV=development
       - POSTGRES_USER=awsuser
       - POSTGRES_PASSWORD=awspass
       - POSTGRES_DB=awsprofiles
+      - FLASK_DEBUG=1
     volumes:
-      - ./migrations:/migrations
-      - postgres_backups:/backups
+      - ./api:/app
     depends_on:
       db:
         condition: service_healthy
-    command: ["psql", "-h", "db", "-U", "awsuser", "-d", "awsprofiles", "-f", "/docker-entrypoint-initdb.d/init.sql"]
+    command: >
+      /bin/sh -c "
+        sleep 5 &&
+        cd /app &&
+        python -c 'from app import app, db; from flask_migrate import upgrade; app.app_context().push(); upgrade()'"
 
 volumes:
   # Application volumes

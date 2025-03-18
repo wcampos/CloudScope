@@ -11,17 +11,19 @@ import logging
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from urllib.parse import quote_plus
+from pathlib import Path
 
 from botocore.exceptions import ClientError
-from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, jsonify
 from flask_migrate import Migrate
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 import boto3
+import configparser
 
-from src.models import db, AWSProfile, SchemaVersion
-from src import aws_classes as awsc
-from src.version import get_version
+from models import db, AWSProfile, SchemaVersion
+import aws_classes as awsc
+from version import get_version
 
 def get_database_url():
     """Construct database URL from environment variables or return the direct URL if provided."""
@@ -124,6 +126,12 @@ def profiles():
 @app.route("/profiles/add", methods=['POST'])
 def add_profile():
     try:
+        name = request.form.get('name')
+        custom_name = request.form.get('custom_name')
+        aws_access_key_id = request.form.get('aws_access_key_id')
+        aws_secret_access_key = request.form.get('aws_secret_access_key')
+        aws_region = request.form.get('aws_region')
+        
         # Handle role configuration
         role_type = request.form.get('role_type', 'none')
         session_token = None
@@ -135,9 +143,9 @@ def add_profile():
             
             # Create a temporary session to get the account ID
             temp_session = boto3.Session(
-                aws_access_key_id=request.form['aws_access_key_id'],
-                aws_secret_access_key=request.form['aws_secret_access_key'],
-                region_name=request.form['aws_region']
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                region_name=aws_region
             )
             
             # Get the account ID using STS
@@ -173,13 +181,24 @@ def add_profile():
             if direct_token:
                 session_token = direct_token
 
+        # Create new profile
         profile = AWSProfile(
-            name=request.form['name'],
-            aws_access_key_id=request.form['aws_access_key_id'],
-            aws_secret_access_key=request.form['aws_secret_access_key'],
+            name=name,
+            custom_name=custom_name,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
             aws_session_token=session_token,
-            aws_region=request.form['aws_region']
+            aws_region=aws_region
         )
+        
+        # Try to get account number
+        try:
+            account_info = profile.get_account_info()
+            if account_info:
+                profile.account_number = account_info['account']
+        except Exception as e:
+            app.logger.warning(f"Could not fetch account number for profile {name}: {str(e)}")
+        
         db.session.add(profile)
         db.session.commit()
         flash('Profile added successfully', 'success')
@@ -214,6 +233,72 @@ def set_active_profile():
         AWSProfile.query.update({'is_active': False})
         db.session.commit()
         flash('No profile selected', 'info')
+    return redirect(url_for('profiles'))
+
+@app.route("/profiles/parse-credentials", methods=['POST'])
+def parse_credentials():
+    try:
+        # Get the credentials text from the form
+        credentials_text = request.form.get('credentials_text')
+        if not credentials_text:
+            raise ValueError("No credentials provided")
+
+        # Create a ConfigParser with the pasted text
+        config = configparser.ConfigParser()
+        
+        # Add a default section header if none exists
+        if not credentials_text.strip().startswith('['):
+            credentials_text = '[default]\n' + credentials_text
+        
+        # Parse the credentials text
+        config.read_string(credentials_text)
+
+        # Get the first section (profile) name
+        if len(config.sections()) == 0:
+            raise ValueError("No valid profile found in credentials")
+        
+        profile_name = config.sections()[0]
+        profile_data = config[profile_name]
+
+        # Extract required fields
+        aws_access_key_id = profile_data.get('aws_access_key_id')
+        aws_secret_access_key = profile_data.get('aws_secret_access_key')
+        if not aws_access_key_id or not aws_secret_access_key:
+            raise ValueError("Access key ID and secret access key are required")
+
+        # Extract optional fields
+        aws_session_token = profile_data.get('aws_session_token')
+        region = profile_data.get('region', 'us-east-1')
+
+        # Create new profile in database
+        new_profile = AWSProfile(
+            name=profile_name.replace('profile ', ''),  # Remove 'profile ' prefix if present
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
+            aws_region=region
+        )
+
+        # Try to get account number
+        try:
+            account_info = new_profile.get_account_info()
+            if account_info:
+                new_profile.account_number = account_info['account']
+        except Exception as e:
+            app.logger.warning(f"Could not fetch account number for profile {profile_name}: {str(e)}")
+
+        db.session.add(new_profile)
+        db.session.commit()
+        flash(f'Profile "{profile_name}" added successfully', 'success')
+
+    except ValueError as e:
+        flash(f'Error parsing credentials: {str(e)}', 'error')
+    except configparser.Error as e:
+        flash(f'Invalid credentials format: {str(e)}', 'error')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error adding profile: {str(e)}', 'error')
+    
     return redirect(url_for('profiles'))
 
 @app.route("/networks")
@@ -256,35 +341,55 @@ def alb():
 def sgs():
     return redirect(url_for('dashboard', view='network'))
 
+@app.route("/ecs")
+@handle_aws_error
+def ecs():
+    return redirect(url_for('dashboard', view='compute'))
+
+@app.route("/eks")
+@handle_aws_error
+def eks():
+    return redirect(url_for('dashboard', view='compute'))
+
 @app.route("/dashboard")
 @handle_aws_error
 def dashboard():
-    aws_services = awsc.CommonAWSServices()
-    
-    view_type = request.args.get('view', 'all')
-    
-    if view_type == 'compute':
-        resources = aws_services.get_compute_resources()
-        title = "Compute Resources"
-    elif view_type == 'storage':
-        resources = aws_services.get_storage_resources()
-        title = "Storage Resources"
-    elif view_type == 'network':
-        resources = aws_services.get_network_resources()
-        title = "Network Resources"
-    elif view_type == 'services':
-        resources = aws_services.get_service_resources()
-        title = "AWS Services"
-    else:
-        resources = aws_services.get_all_resources()
-        title = "All AWS Resources"
-    
-    return render_template(
-        "dashboard.html.j2",
-        resources=resources,
-        title=title,
-        current_view=view_type
-    )
+    try:
+        aws_services = awsc.CommonAWSServices()
+        
+        view_type = request.args.get('view', 'all')
+        
+        if view_type == 'compute':
+            resources = aws_services.get_compute_resources()
+            title = "Compute Resources"
+        elif view_type == 'storage':
+            resources = aws_services.get_storage_resources()
+            title = "Storage Resources"
+        elif view_type == 'network':
+            resources = aws_services.get_network_resources()
+            title = "Network Resources"
+        elif view_type == 'services':
+            resources = aws_services.get_service_resources()
+            title = "AWS Services"
+        else:
+            resources = aws_services.get_all_resources()
+            title = "All AWS Resources"
+        
+        # Check if any resources were successfully fetched
+        if not any(resources.values()):
+            app.logger.warning("No AWS resources were successfully fetched")
+            flash("No AWS resources were found. Please check your AWS credentials and permissions.", "warning")
+        
+        return render_template(
+            "dashboard.html.j2",
+            resources=resources,
+            title=title,
+            current_view=view_type
+        )
+    except Exception as e:
+        app.logger.error(f"Error in dashboard route: {str(e)}")
+        flash(f"An error occurred while fetching AWS resources: {str(e)}", "error")
+        return render_template("error.html.j2", error=str(e))
 
 @app.route("/settings")
 def settings():
@@ -371,6 +476,51 @@ def init_db():
             db.session.add(version)
             db.session.commit()
             app.logger.info(f'Schema version {CURRENT_SCHEMA_VERSION} initialized for existing database')
+
+@app.route("/profiles/<int:profile_id>")
+@handle_aws_error
+def get_profile(profile_id):
+    profile = AWSProfile.query.get_or_404(profile_id)
+    return jsonify({
+        'id': profile.id,
+        'name': profile.name,
+        'custom_name': profile.custom_name,
+        'aws_region': profile.aws_region,
+        'account_number': profile.account_number
+    })
+
+@app.route("/profiles/<int:profile_id>/edit", methods=['POST'])
+@handle_aws_error
+def edit_profile(profile_id):
+    profile = AWSProfile.query.get_or_404(profile_id)
+    
+    # Update profile fields
+    profile.custom_name = request.form.get('custom_name')
+    profile.aws_region = request.form.get('aws_region')
+    
+    # Try to get account number if not already set
+    if not profile.account_number:
+        try:
+            account_info = profile.get_account_info()
+            if account_info:
+                profile.account_number = account_info['account_number']
+        except Exception as e:
+            app.logger.warning(f"Could not fetch account number for profile {profile.name}: {str(e)}")
+    
+    db.session.commit()
+    flash('Profile updated successfully', 'success')
+    return redirect(url_for('profiles'))
+
+@app.route("/health")
+def health_check():
+    """Health check endpoint for container health monitoring."""
+    try:
+        # Check database connection
+        db.session.execute(text("SELECT 1"))
+        return jsonify({"status": "healthy", "database": "connected"}), 200
+    except Exception as e:
+        app.logger.error(f"Health check failed: {str(e)}")
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
 
 if __name__ == '__main__':
     init_db()

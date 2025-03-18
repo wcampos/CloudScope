@@ -7,7 +7,7 @@ from typing import List, Dict, Any
 
 import boto3
 from botocore.exceptions import ClientError
-from src.models import AWSProfile
+from models import AWSProfile
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -250,22 +250,159 @@ class Ec2(AWSBase):
         ilist = []
         
         for rule in rules_data['SecurityGroupRules']:
-            direction = 'Egress' if rule['IsEgress'] else 'Ingress'
-            
             idict = {
                 'Rule Id': rule['SecurityGroupRuleId'],
-                'Security Group': rule['GroupId'],
-                'Direction': direction,
-                'IP Protocol': rule.get('IpProtocol', 'all'),
+                'Group Id': rule['GroupId'],
+                'Protocol': rule['IpProtocol'],
                 'From Port': rule.get('FromPort', 'all'),
                 'To Port': rule.get('ToPort', 'all'),
-                'Cidr': rule.get('CidrIpv4', rule.get('CidrIpv6', 'N/A'))
+                'Cidr': rule.get('CidrIpv4', 'unknown'),
+                'Description': rule.get('Description', '')
             }
             ilist.append(idict)
             
         return sorted(ilist, key=lambda i: i['Rule Id'])
 
-class Rds(AWSBase):
+    @aws_error_handler
+    def describe_volumes(self) -> List[Dict[str, Any]]:
+        volumes_data = self.client.describe_volumes()
+        ilist = []
+        
+        for volume in volumes_data['Volumes']:
+            tags = self._extract_tags(volume.get('Tags', []))
+            
+            idict = {
+                'Name': tags['Name'],
+                'Environment': tags['Environment'],
+                'Volume Id': volume['VolumeId'],
+                'Size': f"{volume['Size']} GB",
+                'Type': volume['VolumeType'],
+                'State': volume['State'],
+                'Availability Zone': volume['AvailabilityZone'],
+                'Encrypted': volume['Encrypted'],
+                'Attachments': [att['InstanceId'] for att in volume['Attachments']] if volume['Attachments'] else []
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Name'])
+
+    @aws_error_handler
+    def describe_amis(self) -> List[Dict[str, Any]]:
+        amis_data = self.client.describe_images(Owners=['self'])
+        ilist = []
+        
+        for ami in amis_data['Images']:
+            tags = self._extract_tags(ami.get('Tags', []))
+            
+            idict = {
+                'Name': tags['Name'],
+                'Environment': tags['Environment'],
+                'AMI Id': ami['ImageId'],
+                'State': ami['State'],
+                'Architecture': ami['Architecture'],
+                'Platform': ami.get('Platform', 'Linux/UNIX'),
+                'Creation Date': ami['CreationDate'],
+                'Description': ami.get('Description', ''),
+                'Root Device Type': ami['RootDeviceType'],
+                'Virtualization Type': ami['VirtualizationType']
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Name'])
+
+    @aws_error_handler
+    def describe_snapshots(self) -> List[Dict[str, Any]]:
+        snapshots_data = self.client.describe_snapshots(OwnerIds=['self'])
+        ilist = []
+        
+        for snapshot in snapshots_data['Snapshots']:
+            tags = self._extract_tags(snapshot.get('Tags', []))
+            
+            idict = {
+                'Name': tags['Name'],
+                'Environment': tags['Environment'],
+                'Snapshot Id': snapshot['SnapshotId'],
+                'Volume Id': snapshot['VolumeId'],
+                'Size': f"{snapshot['VolumeSize']} GB",
+                'State': snapshot['State'],
+                'Progress': snapshot['Progress'],
+                'Start Time': snapshot['StartTime'],
+                'Description': snapshot.get('Description', ''),
+                'Encrypted': snapshot['Encrypted']
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Name'])
+
+class ECS(AWSBase):
+    def __init__(self):
+        super().__init__("ecs")
+
+    @aws_error_handler
+    def describe_clusters(self) -> List[Dict[str, Any]]:
+        clusters_data = self.client.describe_clusters()
+        ilist = []
+        
+        for cluster in clusters_data['clusters']:
+            idict = {
+                'Name': cluster['clusterName'],
+                'Status': cluster['status'],
+                'Running Tasks': cluster['runningTasksCount'],
+                'Pending Tasks': cluster['pendingTasksCount'],
+                'Active Services': cluster['activeServicesCount'],
+                'Registered Container Instances': cluster['registeredContainerInstancesCount']
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Name'])
+
+    @aws_error_handler
+    def describe_services(self) -> List[Dict[str, Any]]:
+        services_data = self.client.list_services()
+        ilist = []
+        
+        for service_arn in services_data['serviceArns']:
+            service_details = self.client.describe_services(cluster='default', services=[service_arn])
+            service = service_details['services'][0]
+            
+            idict = {
+                'Name': service['serviceName'],
+                'Status': service['status'],
+                'Desired Count': service['desiredCount'],
+                'Running Count': service['runningCount'],
+                'Pending Count': service['pendingCount'],
+                'Launch Type': service['launchType']
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Name'])
+
+class EKS(AWSBase):
+    def __init__(self):
+        super().__init__("eks")
+
+    @aws_error_handler
+    def describe_clusters(self) -> List[Dict[str, Any]]:
+        clusters_data = self.client.list_clusters()
+        ilist = []
+        
+        for cluster_name in clusters_data['clusters']:
+            cluster_details = self.client.describe_cluster(name=cluster_name)
+            cluster = cluster_details['cluster']
+            
+            idict = {
+                'Name': cluster['name'],
+                'Status': cluster['status'],
+                'Version': cluster['version'],
+                'Endpoint': cluster['endpoint'],
+                'Role Arn': cluster['roleArn'],
+                'Created At': cluster['createdAt']
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Name'])
+
+class RDS(AWSBase):
     def __init__(self):
         super().__init__("rds")
 
@@ -274,16 +411,17 @@ class Rds(AWSBase):
         rds_data = self.client.describe_db_instances()
         ilist = []
         
-        for rds_instance in rds_data['DBInstances']:
+        for instance in rds_data['DBInstances']:
             idict = {
-                'Name': rds_instance['DBInstanceIdentifier'],
-                'Engine': rds_instance['Engine'],
-                'Version': rds_instance['EngineVersion'],
-                'Size': rds_instance['DBInstanceClass'],
-                'Storage': rds_instance['AllocatedStorage'],
-                'Status': rds_instance['DBInstanceStatus'],
-                'Endpoint': rds_instance['Endpoint']['Address'],
-                'Port': rds_instance['Endpoint']['Port']
+                'Name': instance['DBInstanceIdentifier'],
+                'Engine': instance['Engine'],
+                'Status': instance['DBInstanceStatus'],
+                'Class': instance['DBInstanceClass'],
+                'Storage': instance['AllocatedStorage'],
+                'Multi AZ': instance['MultiAZ'],
+                'Public Access': instance['PubliclyAccessible'],
+                'Endpoint': instance['Endpoint']['Address'],
+                'Port': instance['Endpoint']['Port']
             }
             ilist.append(idict)
             
@@ -295,80 +433,95 @@ class S3(AWSBase):
 
     @aws_error_handler
     def describe_s3(self) -> List[Dict[str, Any]]:
-        s3_data = self.client.list_buckets()
+        buckets_data = self.client.list_buckets()
         ilist = []
         
-        for bucket in s3_data['Buckets']:
+        for bucket in buckets_data['Buckets']:
             try:
                 location = self.client.get_bucket_location(Bucket=bucket['Name'])
                 region = location['LocationConstraint'] or 'us-east-1'
-            except ClientError:
+            except:
                 region = 'unknown'
-            
+                
             idict = {
                 'Name': bucket['Name'],
-                'Creation Date': bucket['CreationDate'],
+                'Created': bucket['CreationDate'],
                 'Region': region
             }
             ilist.append(idict)
             
         return sorted(ilist, key=lambda i: i['Name'])
 
-class CommonAWSServices(AWSBase):
-    """Class to handle common AWS services operations"""
+class CommonAWSServices:
+    """Class to aggregate resources from multiple AWS services."""
     
     def __init__(self):
-        super().__init__("ec2")  # We'll use EC2 as the default service
         self.ec2 = Ec2()
-        self.rds = Rds()
+        self.rds = RDS()
         self.s3 = S3()
-        self.lambda_client = AwsLambda()
+        self.lambda_ = AwsLambda()
         self.dynamodb = DynamoDB()
         self.alb = Alb()
+        self.ecs = ECS()
+        self.eks = EKS()
+        self.logger = logging.getLogger("aws_inventory.CommonAWSServices")
 
-    def get_all_resources(self) -> Dict[str, List[Dict[str, Any]]]:
-        """Get all AWS resources"""
-        return {
-            'EC2 Instances': self.ec2.describe_ec2(),
-            'RDS Instances': self.rds.describe_rds(),
-            'S3 Buckets': self.s3.describe_s3(),
-            'Lambda Functions': self.lambda_client.describe_lambda(),
-            'DynamoDB Tables': self.dynamodb.describe_dynamodb(),
-            'Load Balancers': self.alb.describe_loadbalancers(),
-            'Security Groups': self.ec2.describe_security_groups(),
-            'Security Group Rules': self.ec2.describe_security_group_rules()
-        }
-
-    def get_network_resources(self) -> Dict[str, List[Dict[str, Any]]]:
-        """Get network-related resources"""
-        return {
-            'VPCs': self.ec2.describe_vpcs(),
-            'Subnets': self.ec2.describe_subnets(),
-            'Security Groups': self.ec2.describe_security_groups(),
-            'Security Group Rules': self.ec2.describe_security_group_rules(),
-            'Load Balancers': self.alb.describe_loadbalancers()
-        }
+    def _safe_get_resources(self, service_name: str, method_name: str) -> List[Dict[str, Any]]:
+        """Safely get resources from a service method, handling errors gracefully."""
+        try:
+            service = getattr(self, service_name)
+            method = getattr(service, method_name)
+            return method()
+        except Exception as e:
+            self.logger.error(f"Error fetching {service_name}.{method_name}: {str(e)}")
+            return []
 
     def get_compute_resources(self) -> Dict[str, List[Dict[str, Any]]]:
-        """Get compute-related resources"""
+        """Get all compute-related resources."""
         return {
-            'EC2 Instances': self.ec2.describe_ec2(),
-            'Lambda Functions': self.lambda_client.describe_lambda()
+            'EC2 Instances': self._safe_get_resources('ec2', 'describe_ec2'),
+            'EC2 Volumes': self._safe_get_resources('ec2', 'describe_volumes'),
+            'EC2 AMIs': self._safe_get_resources('ec2', 'describe_amis'),
+            'EC2 Snapshots': self._safe_get_resources('ec2', 'describe_snapshots'),
+            'ECS Clusters': self._safe_get_resources('ecs', 'describe_clusters'),
+            'ECS Services': self._safe_get_resources('ecs', 'describe_services'),
+            'EKS Clusters': self._safe_get_resources('eks', 'describe_clusters'),
+            'Lambda Functions': self._safe_get_resources('lambda_', 'describe_lambda')
         }
 
     def get_storage_resources(self) -> Dict[str, List[Dict[str, Any]]]:
-        """Get storage-related resources"""
+        """Get all storage-related resources."""
         return {
-            'S3 Buckets': self.s3.describe_s3(),
-            'RDS Instances': self.rds.describe_rds(),
-            'DynamoDB Tables': self.dynamodb.describe_dynamodb()
+            'RDS Instances': self._safe_get_resources('rds', 'describe_rds'),
+            'S3 Buckets': self._safe_get_resources('s3', 'describe_s3'),
+            'DynamoDB Tables': self._safe_get_resources('dynamodb', 'describe_dynamodb')
+        }
+
+    def get_network_resources(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get all network-related resources."""
+        return {
+            'VPCs': self._safe_get_resources('ec2', 'describe_vpcs'),
+            'Subnets': self._safe_get_resources('ec2', 'describe_subnets'),
+            'Security Groups': self._safe_get_resources('ec2', 'describe_security_groups'),
+            'Security Group Rules': self._safe_get_resources('ec2', 'describe_security_group_rules')
         }
 
     def get_service_resources(self) -> Dict[str, List[Dict[str, Any]]]:
-        """Get service-related resources"""
+        """Get all service-related resources."""
         return {
-            'Load Balancers': self.alb.describe_loadbalancers(),
-            'Target Groups': self.alb.describe_target_groups(),
-            'Lambda Functions': self.lambda_client.describe_lambda(),
-            'DynamoDB Tables': self.dynamodb.describe_dynamodb()
+            'Load Balancers': self._safe_get_resources('alb', 'describe_loadbalancers'),
+            'Target Groups': self._safe_get_resources('alb', 'describe_target_groups')
         }
+
+    def get_all_resources(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get all resources from all services."""
+        try:
+            return {
+                **self.get_compute_resources(),
+                **self.get_storage_resources(),
+                **self.get_network_resources(),
+                **self.get_service_resources()
+            }
+        except Exception as e:
+            self.logger.error(f"Error getting all resources: {str(e)}")
+            return {}
