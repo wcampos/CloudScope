@@ -33,17 +33,19 @@ services:
 
   ui:
     build:
-      context: .
-      dockerfile: ui/Dockerfile
+      context: ./ui
+      dockerfile: Dockerfile
     ports:
       - "8001:8000"
     volumes:
       - ./ui:/app
+      - ui_logs:/app/logs
     environment:
       - FLASK_ENV=development
       - FLASK_APP=app.py
       - FLASK_DEBUG=1
       - API_BASE_URL=http://api:5000
+      - API_TIMEOUT=300
       - FLASK_SECRET_KEY=your-secret-key-here
       - REDIS_HOST=redis
       - REDIS_PORT=6379

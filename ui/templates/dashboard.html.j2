@@ -24,6 +24,7 @@
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>
+        <div class="mt-3" id="loading-status">Loading resources...</div>
     </div>
 
     <div id="resources-container" style="display: none;">
@@ -70,6 +71,24 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const currentView = '{{ current_view }}';
+    const loadingStatus = document.getElementById('loading-status');
+    let statusUpdateInterval;
+    
+    // Function to update loading status
+    function updateLoadingStatus() {
+        const statuses = [
+            'Loading resources...',
+            'Collecting AWS data...',
+            'Processing resource information...',
+            'Almost done...'
+        ];
+        let currentIndex = 0;
+        
+        statusUpdateInterval = setInterval(() => {
+            currentIndex = (currentIndex + 1) % statuses.length;
+            loadingStatus.textContent = statuses[currentIndex];
+        }, 2000);
+    }
     
     // Function to filter resources based on view
     function filterResources(resources, view) {
@@ -94,6 +113,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to render resources
     function renderResources(resources) {
+        clearInterval(statusUpdateInterval);
         const container = document.getElementById('resources-container');
         container.innerHTML = '';
         
@@ -158,6 +178,9 @@ document.addEventListener('DOMContentLoaded', function() {
             button.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
             
+            // Start loading status updates
+            updateLoadingStatus();
+            
             const response = await fetch('/api/resources/refresh', {
                 method: 'POST'
             });
@@ -187,6 +210,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Handle cache refresh button
     document.getElementById('refresh-cache').addEventListener('click', refreshCache);
+    
+    // Start loading status updates
+    updateLoadingStatus();
     
     // Initial render
     renderResources({{ resources|tojson|safe }});

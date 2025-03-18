@@ -36,6 +36,7 @@ api = Api(app, version='1.0', title='AWS Inventory UI',
 
 # API service configuration
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://api:5000')
+API_TIMEOUT = int(os.getenv('API_TIMEOUT', 300))  # 5 minutes default timeout
 
 @app.template_filter('now')
 def now_filter(date_format='%Y'):
@@ -46,6 +47,9 @@ def api_request(method, endpoint, **kwargs):
     """Helper function to make API requests"""
     url = f"{API_BASE_URL}{endpoint}"
     try:
+        # Set default timeout if not provided
+        if 'timeout' not in kwargs:
+            kwargs['timeout'] = API_TIMEOUT
         response = requests.request(method, url, **kwargs)
         response.raise_for_status()
         return response.json()
