@@ -158,7 +158,7 @@ region = us-east-1"></textarea>
                         </div>
                         {% endfor %}
                         <div class="text-center mt-3">
-                            <button type="submit" class="btn btn-primary">Set Active Profile</button>
+                            <button type="submit" class="btn btn-primary" id="setActiveButton">Set Active Profile</button>
                         </div>
                     </form>
                 </div>
@@ -206,30 +206,25 @@ region = us-east-1"></textarea>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, setting up form handler');
     const setActiveForm = document.getElementById('setActiveForm');
-    console.log('Form element found:', setActiveForm);
+    const setActiveButton = document.getElementById('setActiveButton');
     
-    if (setActiveForm) {
-        setActiveForm.addEventListener('submit', function(event) {
-            console.log('Form submit event triggered');
+    if (setActiveForm && setActiveButton) {
+        setActiveButton.addEventListener('click', function(event) {
+            event.preventDefault();
             const selectedProfile = document.querySelector('input[name="profile_id"]:checked');
-            console.log('Selected profile element:', selectedProfile);
             
             if (!selectedProfile) {
-                console.log('No profile selected, showing alert');
-                event.preventDefault();
                 alert('Please select a profile first');
-                return false;
+                return;
             }
             
             console.log('Submitting form with profile:', selectedProfile.value);
-            return true;
+            setActiveForm.submit();
         });
-    } else {
-        console.error('Could not find form element with id "setActiveForm"');
     }
 
+    console.log('DOM loaded, setting up form handler');
     const roleTypeInputs = document.querySelectorAll('input[name="role_type"]');
     const directTokenField = document.getElementById('direct_token_field');
     const existingRoleField = document.getElementById('existing_role_field');

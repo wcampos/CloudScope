@@ -4,6 +4,8 @@ import requests
 from datetime import datetime, UTC
 import logging
 import os
+import redis
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -12,6 +14,19 @@ logger = logging.getLogger(__name__)
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key')
+
+# Initialize Redis client
+redis_client = redis.Redis(
+    host=os.getenv('REDIS_HOST', 'redis'),
+    port=int(os.getenv('REDIS_PORT', 6379)),
+    db=0,
+    decode_responses=True
+)
+
+# Cache configuration
+CACHE_KEY = 'aws_resources_cache'
+CACHE_TIMESTAMP_KEY = 'aws_resources_timestamp'
+CACHE_DURATION = 300  # 5 minutes in seconds
 
 # Initialize API documentation
 api = Api(app, version='1.0', title='AWS Inventory UI',
@@ -54,11 +69,51 @@ def index():
         flash(f"Error: {str(e)}", 'error')
         return render_template('error.html.j2', error=str(e))
 
+def get_cached_resources():
+    """Get resources from Redis cache"""
+    try:
+        # Check if cache exists and is valid
+        timestamp = redis_client.get(CACHE_TIMESTAMP_KEY)
+        if not timestamp:
+            return None
+            
+        age = int(datetime.now(UTC).timestamp()) - int(timestamp)
+        if age > CACHE_DURATION:
+            return None
+            
+        # Get cached data
+        cached_data = redis_client.get(CACHE_KEY)
+        return json.loads(cached_data) if cached_data else None
+    except Exception as e:
+        logger.error(f"Error getting cached resources: {str(e)}")
+        return None
+
+def update_cache(resources):
+    """Update Redis cache with new resources"""
+    try:
+        # Store resources data
+        redis_client.set(CACHE_KEY, json.dumps(resources))
+        # Store timestamp
+        redis_client.set(CACHE_TIMESTAMP_KEY, int(datetime.now(UTC).timestamp()))
+        logger.debug("Cache updated successfully")
+    except Exception as e:
+        logger.error(f"Error updating cache: {str(e)}")
+
 @app.route('/dashboard')
 def dashboard():
     """Get the dashboard page"""
     try:
-        resources = api_request('GET', '/api/resources')
+        # Try to get resources from cache first
+        resources = get_cached_resources()
+        
+        # If no cache or cache expired, fetch from API
+        if not resources:
+            logger.debug("Cache miss, fetching fresh resources")
+            resources = api_request('GET', '/api/resources')
+            update_cache(resources)
+        else:
+            logger.debug("Using cached resources")
+            
         profiles = api_request('GET', '/api/profiles')
         current_view = request.args.get('view', 'all')
         
@@ -200,6 +255,19 @@ def health_check():
             'error': str(e),
             'timestamp': datetime.now(UTC).isoformat()
         }, 500
+
+@app.route('/api/resources/refresh', methods=['POST'])
+def refresh_resources():
+    """Force refresh of resources cache"""
+    try:
+        # Fetch fresh resources
+        resources = api_request('GET', '/api/resources')
+        # Update cache
+        update_cache(resources)
+        return {'status': 'success', 'message': 'Resources cache refreshed'}
+    except Exception as e:
+        logger.error(f"Error refreshing resources cache: {str(e)}")
+        return {'status': 'error', 'message': str(e)}, 500
 
 # Log all registered routes
 with app.app_context():
