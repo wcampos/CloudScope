@@ -197,6 +197,27 @@ class ProfileDeactivateAllResource(Resource):
         db.session.commit()
         return {'message': 'All profiles deactivated successfully'}
 
+@ns_profiles.route('/<int:profile_id>/account-info')
+class ProfileAccountInfoResource(Resource):
+    @ns_profiles.doc('get_profile_account_info')
+    def get(self, profile_id):
+        """Get AWS account information for a profile"""
+        try:
+            profile = AWSProfile.query.get_or_404(profile_id)
+            account_info = profile.get_account_info()
+            if not account_info:
+                return {
+                    'account': profile.account_number or 'Unknown',
+                    'region': profile.aws_region or 'Unknown'
+                }
+            return account_info
+        except Exception as e:
+            logger.error(f"Error getting account info for profile {profile_id}: {str(e)}")
+            return {
+                'account': 'Unknown',
+                'region': profile.aws_region if profile else 'Unknown'
+            }
+
 @ns_resources.route('/')
 class AWSResourcesResource(Resource):
     @ns_resources.doc('get_aws_resources')

@@ -179,12 +179,12 @@ class Ec2(AWSBase):
                     'Instance Type': instance['InstanceType'],
                     'Vpc Id': instance['VpcId'],
                     'Subnet Id': instance['SubnetId'],
-                    'Security Group': instance['SecurityGroups'][0]['GroupId'],
-                    'IAM Instance profile': instance['IamInstanceProfile']['Arn'].split("/", 1)[-1],
-                    'Lauched Time': instance['LaunchTime'],
-                    'Private IP': instance['PrivateIpAddress'],
+                    'Security Group': instance['SecurityGroups'][0]['GroupId'] if instance['SecurityGroups'] else 'None',
+                    'IAM Instance profile': instance.get('IamInstanceProfile', {}).get('Arn', '').split("/", 1)[-1] if instance.get('IamInstanceProfile') else 'None',
+                    'Launched Time': instance['LaunchTime'].isoformat() if instance['LaunchTime'] else None,
+                    'Private IP': instance.get('PrivateIpAddress', 'None'),
                     'State': instance['State']['Name'],
-                    'OS Family': instance['PlatformDetails']
+                    'OS Family': instance.get('PlatformDetails', 'Unknown')
                 }
                 ilist.append(idict)
                 
@@ -200,9 +200,9 @@ class Ec2(AWSBase):
             
             idict = {
                 'VPC Name': tags['Name'],
-                'Environment': tags['Environment'],
                 'VPC Id': vpc['VpcId'],
-                'VPC Cidr Block': vpc['CidrBlock']
+                'VPC Cidr Block': vpc['CidrBlock'],
+                'Environment': tags['Environment']
             }
             ilist.append(idict)
             
@@ -326,7 +326,7 @@ class Ec2(AWSBase):
                 'Size': f"{snapshot['VolumeSize']} GB",
                 'State': snapshot['State'],
                 'Progress': snapshot['Progress'],
-                'Start Time': snapshot['StartTime'],
+                'Start Time': snapshot['StartTime'].isoformat() if snapshot['StartTime'] else None,
                 'Description': snapshot.get('Description', ''),
                 'Encrypted': snapshot['Encrypted']
             }
@@ -358,24 +358,34 @@ class ECS(AWSBase):
 
     @aws_error_handler
     def describe_services(self) -> List[Dict[str, Any]]:
-        services_data = self.client.list_services()
-        ilist = []
-        
-        for service_arn in services_data['serviceArns']:
-            service_details = self.client.describe_services(cluster='default', services=[service_arn])
-            service = service_details['services'][0]
+        try:
+            # First, get the default cluster
+            clusters = self.client.list_clusters()
+            if not clusters.get('clusterArns'):
+                return []
+                
+            default_cluster = clusters['clusterArns'][0]
+            services_data = self.client.list_services(cluster=default_cluster)
+            ilist = []
             
-            idict = {
-                'Name': service['serviceName'],
-                'Status': service['status'],
-                'Desired Count': service['desiredCount'],
-                'Running Count': service['runningCount'],
-                'Pending Count': service['pendingCount'],
-                'Launch Type': service['launchType']
-            }
-            ilist.append(idict)
-            
-        return sorted(ilist, key=lambda i: i['Name'])
+            for service_arn in services_data['serviceArns']:
+                service_details = self.client.describe_services(cluster=default_cluster, services=[service_arn])
+                service = service_details['services'][0]
+                
+                idict = {
+                    'Name': service['serviceName'],
+                    'Status': service['status'],
+                    'Desired Count': service['desiredCount'],
+                    'Running Count': service['runningCount'],
+                    'Pending Count': service['pendingCount'],
+                    'Launch Type': service['launchType']
+                }
+                ilist.append(idict)
+                
+            return sorted(ilist, key=lambda i: i['Name'])
+        except Exception as e:
+            self.logger.warning(f"No ECS services found: {str(e)}")
+            return []
 
 class EKS(AWSBase):
     def __init__(self):
@@ -396,7 +406,7 @@ class EKS(AWSBase):
                 'Version': cluster['version'],
                 'Endpoint': cluster['endpoint'],
                 'Role Arn': cluster['roleArn'],
-                'Created At': cluster['createdAt']
+                'Created At': cluster['createdAt'].isoformat() if cluster['createdAt'] else None
             }
             ilist.append(idict)
             
@@ -445,12 +455,59 @@ class S3(AWSBase):
                 
             idict = {
                 'Name': bucket['Name'],
-                'Created': bucket['CreationDate'],
+                'Created': bucket['CreationDate'].isoformat() if bucket['CreationDate'] else None,
                 'Region': region
             }
             ilist.append(idict)
             
         return sorted(ilist, key=lambda i: i['Name'])
+
+class Route53(AWSBase):
+    def __init__(self):
+        super().__init__("route53")
+
+    @aws_error_handler
+    def describe_hosted_zones(self) -> List[Dict[str, Any]]:
+        zones_data = self.client.list_hosted_zones()
+        ilist = []
+        
+        for zone in zones_data['HostedZones']:
+            idict = {
+                'Zone Name': zone['Name'],
+                'Id': zone['Id'],
+                'Record Count': zone['ResourceRecordSetCount'],
+                'Private Zone': zone['Config']['PrivateZone'],
+                'Comment': zone.get('Config', {}).get('Comment', '')
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Zone Name'])
+
+class CertificateManager(AWSBase):
+    def __init__(self):
+        super().__init__("acm")
+
+    @aws_error_handler
+    def describe_certificates(self) -> List[Dict[str, Any]]:
+        certs_data = self.client.list_certificates()
+        ilist = []
+        
+        for cert in certs_data['CertificateSummaryList']:
+            cert_details = self.client.describe_certificate(CertificateArn=cert['CertificateArn'])
+            cert_info = cert_details['Certificate']
+            
+            idict = {
+                'Certificate Name': cert_info['DomainName'],
+                'Status': cert_info['Status'],
+                'Type': cert_info['Type'],
+                'Key Algorithm': cert_info['KeyAlgorithm'],
+                'Not Before': cert_info['NotBefore'].isoformat() if cert_info['NotBefore'] else None,
+                'Not After': cert_info['NotAfter'].isoformat() if cert_info['NotAfter'] else None,
+                'ARN': cert_info['CertificateArn']
+            }
+            ilist.append(idict)
+            
+        return sorted(ilist, key=lambda i: i['Certificate Name'])
 
 class CommonAWSServices:
     """Class to aggregate resources from multiple AWS services."""
@@ -464,6 +521,8 @@ class CommonAWSServices:
         self.alb = Alb()
         self.ecs = ECS()
         self.eks = EKS()
+        self.route53 = Route53()
+        self.acm = CertificateManager()
         self.logger = logging.getLogger("aws_inventory.CommonAWSServices")
 
     def _safe_get_resources(self, service_name: str, method_name: str) -> List[Dict[str, Any]]:
@@ -503,7 +562,9 @@ class CommonAWSServices:
             'VPCs': self._safe_get_resources('ec2', 'describe_vpcs'),
             'Subnets': self._safe_get_resources('ec2', 'describe_subnets'),
             'Security Groups': self._safe_get_resources('ec2', 'describe_security_groups'),
-            'Security Group Rules': self._safe_get_resources('ec2', 'describe_security_group_rules')
+            'Security Group Rules': self._safe_get_resources('ec2', 'describe_security_group_rules'),
+            'Route53 Hosted Zones': self._safe_get_resources('route53', 'describe_hosted_zones'),
+            'SSL Certificates': self._safe_get_resources('acm', 'describe_certificates')
         }
 
     def get_service_resources(self) -> Dict[str, List[Dict[str, Any]]]:

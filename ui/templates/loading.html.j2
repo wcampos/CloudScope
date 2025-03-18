@@ -1,0 +1,135 @@
+{% extends "base.html.j2" %}
+
+{% block title %}Loading Resources - AWS Inventory{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title mb-4">Loading AWS Resources</h2>
+                    
+                    <div class="progress mb-4" style="height: 25px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" 
+                             style="width: 0%" 
+                             id="progress-bar">0%</div>
+                    </div>
+
+                    <div class="status-message mb-4" id="status-message">
+                        Initializing resource collection...
+                    </div>
+
+                    <div class="spinner-border text-primary mb-4" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+
+                    <div class="resource-stats mt-4">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Compute</h5>
+                                        <p class="card-text" id="compute-status">Pending...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Storage</h5>
+                                        <p class="card-text" id="storage-status">Pending...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Networking</h5>
+                                        <p class="card-text" id="networking-status">Pending...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const progressBar = document.getElementById('progress-bar');
+    const statusMessage = document.getElementById('status-message');
+    const computeStatus = document.getElementById('compute-status');
+    const storageStatus = document.getElementById('storage-status');
+    const networkingStatus = document.getElementById('networking-status');
+
+    const statusMessages = [
+        'Initializing resource collection...',
+        'Connecting to AWS services...',
+        'Fetching compute resources...',
+        'Fetching storage resources...',
+        'Fetching networking resources...',
+        'Processing resource data...',
+        'Almost done...'
+    ];
+
+    const resourceStatuses = {
+        compute: ['EC2 instances', 'Lambda functions', 'ECS clusters', 'EKS clusters'],
+        storage: ['S3 buckets', 'DynamoDB tables', 'RDS instances', 'EBS volumes'],
+        networking: ['VPCs', 'Subnets', 'Security Groups', 'Route Tables']
+    };
+
+    let currentMessageIndex = 0;
+    let currentResourceIndex = 0;
+    let progress = 0;
+
+    // Update status message
+    function updateStatusMessage() {
+        statusMessage.textContent = statusMessages[currentMessageIndex];
+        currentMessageIndex = (currentMessageIndex + 1) % statusMessages.length;
+    }
+
+    // Update resource status
+    function updateResourceStatus() {
+        const resources = Object.values(resourceStatuses).flat();
+        if (currentResourceIndex < resources.length) {
+            const resource = resources[currentResourceIndex];
+            if (resourceStatuses.compute.includes(resource)) {
+                computeStatus.textContent = `Fetching ${resource}...`;
+            } else if (resourceStatuses.storage.includes(resource)) {
+                storageStatus.textContent = `Fetching ${resource}...`;
+            } else if (resourceStatuses.networking.includes(resource)) {
+                networkingStatus.textContent = `Fetching ${resource}...`;
+            }
+            currentResourceIndex++;
+        }
+    }
+
+    // Update progress
+    function updateProgress() {
+        progress += 1;
+        if (progress <= 100) {
+            progressBar.style.width = `${progress}%`;
+            progressBar.textContent = `${progress}%`;
+        }
+    }
+
+    // Start the loading animation
+    const statusInterval = setInterval(updateStatusMessage, 2000);
+    const resourceInterval = setInterval(updateResourceStatus, 1500);
+    const progressInterval = setInterval(updateProgress, 100);
+
+    // Redirect to dashboard after loading
+    setTimeout(() => {
+        clearInterval(statusInterval);
+        clearInterval(resourceInterval);
+        clearInterval(progressInterval);
+        window.location.href = "{{ url_for('dashboard') }}";
+    }, 10000); // Redirect after 10 seconds
+});
+</script>
+{% endblock %} 

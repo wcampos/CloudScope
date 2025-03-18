@@ -1,58 +1,154 @@
 {% extends "base.html.j2" %}
 
-{% block title %}Home{% endblock %}
+{% block title %}Home - AWS Inventory{% endblock %}
 
 {% block content %}
-<div class="jumbotron">
-    <h1 class="display-4">Welcome to AWS Inventory</h1>
-    <p class="lead">A simple tool to view and manage your AWS resources.</p>
-    <hr class="my-4">
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="jumbotron">
+                <h1 class="display-4">Welcome to AWS Inventory</h1>
+                <p class="lead">A comprehensive tool to view and manage your AWS resources across multiple accounts and regions.</p>
+                <hr class="my-4">
+                {% if active_profile %}
+                <div class="alert alert-success">
+                    <h4 class="alert-heading">Active AWS Profile</h4>
+                    <p>Currently using profile: <strong>{{ active_profile.name }}</strong> ({{ active_profile.aws_region }})</p>
+                    <hr>
+                    <p class="mb-0">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-primary">View Dashboard</a>
+                    </p>
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <h4 class="alert-heading">No Active AWS Profile</h4>
+                    <p>You need to set up and select an AWS profile before you can view AWS resources.</p>
+                    <hr>
+                    <p class="mb-0">
+                        <a href="{{ url_for('profiles') }}" class="btn btn-warning">Set Up AWS Profile</a>
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Getting Started</h5>
+                </div>
+                <div class="card-body">
+                    <h6>1. Set Up AWS Profile</h6>
+                    <p>First, you need to add your AWS credentials. You can do this in two ways:</p>
+                    <ul>
+                        <li>Paste your AWS credentials file content (recommended)</li>
+                        <li>Manually enter your AWS access key and secret</li>
+                    </ul>
+                    
+                    <h6>2. Select Active Profile</h6>
+                    <p>After adding your credentials, select the profile you want to use as active. Only one profile can be active at a time.</p>
+                    
+                    <h6>3. View Resources</h6>
+                    <p>Once you have an active profile, you can:</p>
+                    <ul>
+                        <li>View the dashboard for a complete overview</li>
+                        <li>Browse specific resource types (EC2, S3, etc.)</li>
+                        <li>Filter and search through your resources</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Features</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="fas fa-server text-primary"></i> Multi-account support
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-globe text-success"></i> Multi-region support
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-sync text-info"></i> Real-time resource updates
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-search text-warning"></i> Advanced filtering
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-shield-alt text-danger"></i> Secure credential storage
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Quick Links</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="{{ url_for('profiles') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-user-circle"></i> Manage Profiles
+                        </a>
+                        <a href="{{ url_for('settings') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-cog"></i> Settings
+                        </a>
+                        <a href="{{ url_for('dashboard') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-tachometer-alt"></i> Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {% if active_profile %}
-    <p>Currently using profile: <strong>{{ active_profile.name }}</strong> ({{ active_profile.aws_region }})</p>
-    {% else %}
-    <div class="alert alert-warning">
-        <h4 class="alert-heading">No Active AWS Profile</h4>
-        <p>You need to set up and select an AWS profile before you can view AWS resources.</p>
-        <hr>
-        <p class="mb-0">
-            <a href="{{ url_for('profiles') }}" class="btn btn-warning">Set Up AWS Profile</a>
-        </p>
+    <div class="row mt-4">
+        <div class="col-12">
+            <h3>Resource Categories</h3>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Compute</h5>
+                    <p class="card-text">View and manage your compute resources including EC2 instances, Lambda functions, and container services.</p>
+                    <div class="btn-group">
+                        <a href="/ec2" class="btn btn-primary">EC2</a>
+                        <a href="/lambda" class="btn btn-secondary">Lambda</a>
+                        <a href="/ecs" class="btn btn-info">ECS</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Storage</h5>
+                    <p class="card-text">Access your storage resources including S3 buckets, DynamoDB tables, and RDS instances.</p>
+                    <div class="btn-group">
+                        <a href="/s3" class="btn btn-primary">S3</a>
+                        <a href="/dynamodb" class="btn btn-secondary">DynamoDB</a>
+                        <a href="/rds" class="btn btn-info">RDS</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Networking</h5>
+                    <p class="card-text">Monitor your networking resources including VPCs, subnets, and security groups.</p>
+                    <div class="btn-group">
+                        <a href="/networks" class="btn btn-primary">VPCs</a>
+                        <a href="/sgs" class="btn btn-secondary">Security Groups</a>
+                        <a href="/alb" class="btn btn-info">Load Balancers</a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     {% endif %}
 </div>
-
-{% if active_profile %}
-<div class="row mt-4">
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Compute</h5>
-                <p class="card-text">View EC2 instances and Lambda functions.</p>
-                <a href="/ec2" class="btn btn-primary">View EC2</a>
-                <a href="/lambda" class="btn btn-secondary">View Lambda</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Storage</h5>
-                <p class="card-text">View S3 buckets and DynamoDB tables.</p>
-                <a href="/s3" class="btn btn-primary">View S3</a>
-                <a href="/dynamodb" class="btn btn-secondary">View DynamoDB</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Networking</h5>
-                <p class="card-text">View VPCs, subnets, and security groups.</p>
-                <a href="/networks" class="btn btn-primary">View Networks</a>
-                <a href="/sgs" class="btn btn-secondary">View Security Groups</a>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
 {% endblock %}

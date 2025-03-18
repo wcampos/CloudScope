@@ -50,11 +50,18 @@ def api_request(method, endpoint, **kwargs):
         # Set default timeout if not provided
         if 'timeout' not in kwargs:
             kwargs['timeout'] = API_TIMEOUT
+            
+        # Ensure endpoint has trailing slash if it's a GET request
+        if method == 'GET' and not endpoint.endswith('/'):
+            url += '/'
+            
         response = requests.request(method, url, **kwargs)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         logger.error(f"API request failed: {str(e)}")
+        if hasattr(e.response, 'text'):
+            logger.error(f"Response text: {e.response.text}")
         raise
 
 # Define namespaces
@@ -67,13 +74,47 @@ def index():
     """Get the home page"""
     logger.debug("Handling request for index page")
     try:
-        return render_template('index.html.j2')
+        # Get active profile if any
+        active_profile = None
+        try:
+            profiles = api_request('GET', '/api/profiles')
+            active_profile = next((p for p in profiles if p.get('is_active')), None)
+        except Exception as e:
+            logger.warning(f"Could not fetch active profile: {str(e)}")
+        
+        return render_template('index.html.j2', active_profile=active_profile)
     except Exception as e:
         logger.error(f"Error rendering index page: {str(e)}")
         flash(f"Error: {str(e)}", 'error')
         return render_template('error.html.j2', error=str(e))
 
-def get_cached_resources():
+@app.route('/loading')
+def loading():
+    """Show loading page while fetching resources"""
+    return render_template('loading.html.j2')
+
+def get_active_profile():
+    """Get the currently active profile from the API"""
+    try:
+        profiles = api_request('GET', '/api/profiles')
+        active_profile = next((p for p in profiles if p.get('is_active')), None)
+        if active_profile:
+            # Get account info for active profile
+            try:
+                account_info = api_request('GET', f'/api/profiles/{active_profile["id"]}/account-info')
+                active_profile['account_info'] = account_info
+            except Exception as e:
+                logger.warning(f"Could not fetch account info: {str(e)}")
+                active_profile['account_info'] = {
+                    'account': active_profile.get('account_number', 'Unknown'),
+                    'region': active_profile.get('aws_region', 'Unknown')
+                }
+        return active_profile
+    except Exception as e:
+        logger.error(f"Error getting active profile: {str(e)}")
+        return None
+
+def get_resources_from_cache():
     """Get resources from Redis cache"""
     try:
         # Check if cache exists and is valid
@@ -92,61 +133,91 @@ def get_cached_resources():
         logger.error(f"Error getting cached resources: {str(e)}")
         return None
 
-def update_cache(resources):
-    """Update Redis cache with new resources"""
+def get_resources_from_api():
+    """Get resources from the API"""
+    try:
+        return api_request('GET', '/api/resources')
+    except Exception as e:
+        logger.error(f"Error getting resources from API: {str(e)}")
+        return None
+
+def cache_resources(resources):
+    """Cache resources in Redis"""
     try:
         # Store resources data
         redis_client.set(CACHE_KEY, json.dumps(resources))
         # Store timestamp
         redis_client.set(CACHE_TIMESTAMP_KEY, int(datetime.now(UTC).timestamp()))
-        logger.debug("Cache updated successfully")
+        logger.debug("Resources cached successfully")
     except Exception as e:
-        logger.error(f"Error updating cache: {str(e)}")
+        logger.error(f"Error caching resources: {str(e)}")
 
 @app.route('/dashboard')
 def dashboard():
-    """Get the dashboard page"""
+    """Dashboard view"""
     try:
-        # Try to get resources from cache first
-        resources = get_cached_resources()
+        # Get active profile
+        active_profile = get_active_profile()
+        if not active_profile:
+            flash('No active AWS profile found. Please set up a profile first.', 'warning')
+            return redirect(url_for('index'))
+
+        # Get account info
+        account_info = active_profile.get('account_info', {
+            'account': active_profile.get('account_number', 'Unknown'),
+            'region': active_profile.get('aws_region', 'Unknown')
+        })
         
-        # If no cache or cache expired, fetch from API
+        # Get resources from cache or API
+        resources = get_resources_from_cache()
         if not resources:
-            logger.debug("Cache miss, fetching fresh resources")
-            resources = api_request('GET', '/api/resources')
-            update_cache(resources)
-        else:
-            logger.debug("Using cached resources")
-            
-        profiles = api_request('GET', '/api/profiles')
-        current_view = request.args.get('view', 'all')
-        
-        # Filter resources based on the selected view
-        if current_view != 'all':
-            filtered_resources = {}
+            resources = get_resources_from_api()
+            if resources:
+                cache_resources(resources)
+
+        # Create summary view
+        summary = {}
+        if resources:
             for service_name, items in resources.items():
-                # Map services to their categories
-                service_categories = {
-                    'compute': ['ec2', 'lambda', 'ecs', 'eks'],
-                    'storage': ['s3', 'ebs', 'efs', 'rds'],
-                    'network': ['vpc', 'subnet', 'security_group', 'route_table', 'internet_gateway', 'nat_gateway'],
-                    'services': ['alb', 'dynamodb', 'cloudwatch', 'iam']
-                }
-                
-                # Check if the service belongs to the selected category
-                if any(category in service_name.lower() for category in service_categories.get(current_view, [])):
-                    filtered_resources[service_name] = items
-            
+                summary[service_name] = len(items)
+
+        # Log all available resource types for debugging
+        logger.debug(f"Available resource types: {list(resources.keys()) if resources else []}")
+
+        # Filter resources based on view
+        view = request.args.get('view', 'summary')
+        if view != 'summary':
+            filtered_resources = {}
+            if view == 'compute':
+                compute_services = ['EC2 Instances', 'EC2 Volumes', 'EC2 AMIs', 'EC2 Snapshots', 
+                                  'ECS Clusters', 'ECS Services', 'EKS Clusters', 'Lambda Functions']
+                filtered_resources = {k: v for k, v in resources.items() if k in compute_services}
+            elif view == 'storage':
+                storage_services = ['RDS Instances', 'S3 Buckets', 'DynamoDB Tables']
+                filtered_resources = {k: v for k, v in resources.items() if k in storage_services}
+            elif view == 'network':
+                network_services = ['VPCs', 'Subnets', 'Security Groups', 'Security Group Rules',
+                                  'Route53 Hosted Zones', 'SSL Certificates']
+                filtered_resources = {k: v for k, v in resources.items() if k in network_services}
+            elif view == 'service':
+                service_services = ['Load Balancers', 'Target Groups']
+                filtered_resources = {k: v for k, v in resources.items() if k in service_services}
+                # Log service resources for debugging
+                logger.debug(f"Service view resources: {filtered_resources}")
             resources = filtered_resources
-        
-        return render_template('dashboard.html.j2',
-                            resources=resources,
-                            profiles=profiles,
-                            current_view=current_view,
-                            title='Dashboard')
-    except requests.exceptions.RequestException as e:
-        flash(f"Error: {str(e)}", 'error')
-        return render_template('error.html.j2', error=str(e))
+
+        # Log resources for debugging
+        logger.debug(f"Resources for view '{view}': {resources}")
+
+        return render_template('dashboard.html.j2', 
+                             resources=resources or {},
+                             summary=summary,
+                             current_view=view,
+                             account_info=account_info)
+    except Exception as e:
+        logger.error(f"Error in dashboard: {str(e)}")
+        flash('Error loading dashboard. Please try again.', 'error')
+        return redirect(url_for('index'))
 
 @app.route('/profiles')
 def profiles():
