@@ -4,36 +4,28 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    make \
     curl \
-    postgresql-client \
-    libpq-dev \
-    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first to leverage Docker cache
-COPY requirements.txt .
+COPY ui/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create volume directories
-RUN mkdir -p /app/data /app/logs /app/static /app/uploads /app/tests/data /app/migrations
+# Create necessary directories
+RUN mkdir -p /app/static /app/templates
 
 # Copy application code
-COPY . .
-
-# Initialize Flask-Migrate
-RUN flask db init || true
+COPY ui/ .
 
 # Create non-root user and set permissions
 RUN useradd -m appuser && \
     chown -R appuser:appuser /app && \
-    chmod -R 755 /app/data /app/logs /app/static /app/uploads /app/tests/data /app/migrations && \
     chmod -R 755 /app
 
 USER appuser
 
 # Expose port
-EXPOSE 5000
+EXPOSE 8000
 
-# Run the application
+# Run the UI service
 CMD ["python", "app.py"] 

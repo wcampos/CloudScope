@@ -1,8 +1,10 @@
 version: '3.8'
 
 services:
-  web:
-    build: .
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     ports:
       - "5001:5000"
     volumes:
@@ -10,18 +12,48 @@ services:
       - app_logs:/app/logs
       - app_static:/app/static
       - app_uploads:/app/uploads
-      - .:/app
+      - ./api:/app
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=postgresql+psycopg://awsuser:awspass@db:5432/awsprofiles
-      - POSTGRES_USER=awsuser
-      - POSTGRES_PASSWORD=awspass
-      - POSTGRES_DB=awsprofiles
+      - DATABASE_URL=postgresql://aws_inventory:aws_inventory@db:5432/aws_inventory
+      - FLASK_APP=app.py
+      - FLASK_DEBUG=1
+      - POSTGRES_USER=aws_inventory
+      - POSTGRES_PASSWORD=aws_inventory
+      - POSTGRES_DB=aws_inventory
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./ui:/app
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=app.py
+      - FLASK_DEBUG=1
+      - API_BASE_URL=http://api:5000
+      - FLASK_SECRET_KEY=your-secret-key-here
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -30,35 +62,53 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      - POSTGRES_USER=awsuser
-      - POSTGRES_PASSWORD=awspass
-      - POSTGRES_DB=awsprofiles
+      POSTGRES_DB: aws_inventory
+      POSTGRES_USER: aws_inventory
+      POSTGRES_PASSWORD: aws_inventory
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - postgres_backups:/var/lib/postgresql/backups
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U awsuser -d awsprofiles"]
+      test: ["CMD-SHELL", "pg_isready -U aws_inventory"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   migrations:
     build:
-      context: ./migrations
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api/Dockerfile
     environment:
-      - POSTGRES_USER=awsuser
-      - POSTGRES_PASSWORD=awspass
-      - POSTGRES_DB=awsprofiles
+      - FLASK_APP=app.py
+      - DATABASE_URL=postgresql://aws_inventory:aws_inventory@db:5432/aws_inventory
+      - FLASK_ENV=development
+      - POSTGRES_USER=aws_inventory
+      - POSTGRES_PASSWORD=aws_inventory
+      - POSTGRES_DB=aws_inventory
+      - FLASK_DEBUG=1
     volumes:
-      - ./migrations:/migrations
-      - postgres_backups:/backups
+      - ./api:/app
     depends_on:
       db:
         condition: service_healthy
-    command: ["psql", "-h", "db", "-U", "awsuser", "-d", "awsprofiles", "-f", "/docker-entrypoint-initdb.d/init.sql"]
+    command: >
+      /bin/sh -c "
+        sleep 5 &&
+        cd /app &&
+        python -c 'from app import app, db; from flask_migrate import upgrade; app.app_context().push(); db.create_all(); upgrade()'"
 
 volumes:
   # Application volumes
@@ -74,5 +124,9 @@ volumes:
   # Database volumes
   postgres_data:
     name: aws_inventory_postgres_data
-  postgres_backups:
-    name: aws_inventory_postgres_backups 
+  redis_data:
+    name: aws_inventory_redis_data
+  api_logs:
+    name: aws_inventory_api_logs
+  ui_logs:
+    name: aws_inventory_ui_logs 

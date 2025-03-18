@@ -1,108 +1,89 @@
-.PHONY: help setup clean test lint format docker-* db-* migrate-*
+.PHONY: build up down logs ps clean test migrate help
 
-# Variables
-PYTHON = python3.13
-VENV = .venv
-PIP = $(VENV)/bin/pip
-PYTEST = $(VENV)/bin/pytest
-BLACK = $(VENV)/bin/black
-PYLINT = $(VENV)/bin/pylint
-DOCKER_COMPOSE = docker compose
+# Default target
+help:
+	@echo "Available commands:"
+	@echo "  make build    - Build all Docker images"
+	@echo "  make up       - Start all containers"
+	@echo "  make down     - Stop and remove all containers"
+	@echo "  make logs     - View logs from all containers"
+	@echo "  make ps       - List running containers"
+	@echo "  make clean    - Remove all containers, volumes, and images"
+	@echo "  make test     - Run tests"
+	@echo "  make migrate  - Run database migrations"
+	@echo "  make help     - Show this help message"
 
-help: ## Show this help message
-	@echo 'Usage: make [target]'
-	@echo ''
-	@echo 'Targets:'
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+# Build Docker images
+build:
+	docker-compose build
 
-# Development environment setup
-setup: ## Create virtual environment and install dependencies
-	$(PYTHON) -m venv $(VENV)
-	$(PIP) install --upgrade pip
-	$(PIP) install -r requirements.txt
+# Start containers
+up:
+	docker-compose up -d
 
-clean: ## Remove virtual environment and cache files
-	rm -rf $(VENV)
-	find . -type d -name "__pycache__" -exec rm -rf {} +
+# Stop and remove containers
+down:
+	docker-compose down
+
+# View container logs
+logs:
+	docker-compose logs -f
+
+# List running containers
+ps:
+	docker-compose ps
+
+# Clean up everything
+clean:
+	docker-compose down -v
+	docker system prune -f
+	find . -type d -name "__pycache__" -exec rm -r {} +
 	find . -type f -name "*.pyc" -delete
-	find . -type f -name "*.pyo" -delete
-	find . -type f -name "*.pyd" -delete
-	find . -type f -name ".coverage" -delete
-	find . -type f -name "coverage.xml" -delete
-	find . -type d -name "htmlcov" -exec rm -rf {} +
-	find . -type d -name ".pytest_cache" -exec rm -rf {} +
-	find . -type d -name ".eggs" -exec rm -rf {} +
-	find . -type f -name "*.egg-info" -exec rm -rf {} +
 
-# Testing and code quality
-test: ## Run tests with coverage
-	$(PYTEST) tests/ -v --cov=src --cov-report=term-missing
+# Run tests
+test:
+	docker-compose exec api python -m pytest
 
-lint: ## Run pylint
-	$(PYLINT) src/ tests/ app.py
+# Run database migrations
+migrate:
+	docker-compose run --rm migrations
 
-format: ## Format code with black
-	$(BLACK) src/ tests/ app.py
+# Development shortcuts
+dev-api:
+	docker-compose logs -f api
 
-# Docker commands
-docker-build: ## Build Docker images
-	$(DOCKER_COMPOSE) build
+dev-ui:
+	docker-compose logs -f ui
 
-docker-up: ## Start Docker containers in detached mode
-	$(DOCKER_COMPOSE) up -d
+dev-db:
+	docker-compose logs -f db
 
-docker-down: ## Stop Docker containers
-	$(DOCKER_COMPOSE) down
+# Database management
+db-shell:
+	docker-compose exec db psql -U awsuser -d awsprofiles
 
-docker-logs: ## View Docker container logs
-	$(DOCKER_COMPOSE) logs -f
+db-backup:
+	@echo "Creating database backup..."
+	@docker-compose exec db pg_dump -U awsuser awsprofiles > backup-$$(date +%Y%m%d-%H%M%S).sql
 
-docker-ps: ## List running Docker containers
-	$(DOCKER_COMPOSE) ps
-
-docker-test: ## Run tests in Docker container
-	$(DOCKER_COMPOSE) run --rm test
-
-docker-clean: ## Remove Docker containers, images, and volumes
-	$(DOCKER_COMPOSE) down -v --rmi all
-
-docker-shell: ## Open a shell in the web container
-	$(DOCKER_COMPOSE) exec web /bin/bash
-
-# Database commands
-db-init: ## Initialize the database
-	$(DOCKER_COMPOSE) exec web flask db init
-
-db-migrate: ## Create a new database migration
-	$(DOCKER_COMPOSE) exec web flask db migrate
-
-db-upgrade: ## Apply database migrations
-	$(DOCKER_COMPOSE) exec web flask db upgrade
-
-db-downgrade: ## Rollback database migration
-	$(DOCKER_COMPOSE) exec web flask db downgrade
-
-db-shell: ## Open PostgreSQL shell
-	$(DOCKER_COMPOSE) exec db psql -U awsuser -d awsprofiles
-
-# Migration commands
-migrate-create: ## Create a new migration file (usage: make migrate-create name=migration_name)
-	@if [ -z "$(name)" ]; then \
-		echo "Error: migration name not provided. Usage: make migrate-create name=migration_name"; \
+db-restore:
+	@if [ -z "$$FILE" ]; then \
+		echo "Please specify the backup file: make db-restore FILE=<backup-file>"; \
 		exit 1; \
 	fi
-	@echo "-- Migration: $(name)" > migrations/$(shell date +%Y%m%d%H%M%S)_$(name).sql
-	@echo "Created new migration file: migrations/$(shell date +%Y%m%d%H%M%S)_$(name).sql"
+	@echo "Restoring database from $$FILE..."
+	@docker-compose exec -T db psql -U awsuser awsprofiles < $$FILE
 
-migrate-run: ## Run database migrations
-	$(DOCKER_COMPOSE) up migrations
+# Rebuild and restart specific services
+restart-api:
+	docker-compose up -d --build api
 
-migrate-status: ## Check migration status
-	$(DOCKER_COMPOSE) exec db psql -U awsuser -d awsprofiles -c "SELECT * FROM aws_profiles;"
+restart-ui:
+	docker-compose up -d --build ui
 
-# Combined commands
-dev-setup: docker-build docker-up migrate-run ## Set up development environment with Docker
-
-dev-clean: docker-down docker-clean clean ## Clean up development environment
-
-all: clean setup format lint test ## Clean, setup, format, lint, and test 
+# View service health
+health-check:
+	@echo "Checking API health..."
+	@curl -s http://localhost:5000/health
+	@echo "\nChecking UI health..."
+	@curl -s http://localhost:8000/health 

@@ -1,0 +1,195 @@
+{% extends "base.html.j2" %}
+
+{% block title %}Dashboard - AWS Inventory{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>{{ title or 'AWS Resources' }}</h2>
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary {% if current_view == 'all' %}active{% endif %}">All Resources</a>
+                <a href="{{ url_for('dashboard', view='compute') }}" class="btn btn-outline-primary {% if current_view == 'compute' %}active{% endif %}">Compute</a>
+                <a href="{{ url_for('dashboard', view='storage') }}" class="btn btn-outline-primary {% if current_view == 'storage' %}active{% endif %}">Storage</a>
+                <a href="{{ url_for('dashboard', view='network') }}" class="btn btn-outline-primary {% if current_view == 'network' %}active{% endif %}">Network</a>
+                <a href="{{ url_for('dashboard', view='services') }}" class="btn btn-outline-primary {% if current_view == 'services' %}active{% endif %}">Services</a>
+            </div>
+            <button id="refresh-cache" class="btn btn-outline-secondary ms-2">
+                <i class="fas fa-sync-alt"></i> Refresh Cache
+            </button>
+        </div>
+    </div>
+
+    <div id="loading" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <div id="resources-container" style="display: none;">
+        {% if not resources %}
+            <div class="alert alert-info">
+                No resources found for the selected view.
+            </div>
+        {% else %}
+            {% for service_name, items in resources.items() %}
+                {% if items and items|length > 0 %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">{{ service_name }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        {% for header in items[0].keys() %}
+                                        <th>{{ header }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                    <tr>
+                                        {% for value in item.values() %}
+                                        <td>{{ value }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const currentView = '{{ current_view }}';
+    
+    // Function to filter resources based on view
+    function filterResources(resources, view) {
+        if (view === 'all') return resources;
+        
+        const serviceCategories = {
+            'compute': ['ec2', 'lambda', 'ecs', 'eks'],
+            'storage': ['s3', 'ebs', 'efs', 'rds'],
+            'network': ['vpc', 'subnet', 'security_group', 'route_table', 'internet_gateway', 'nat_gateway'],
+            'services': ['alb', 'dynamodb', 'cloudwatch', 'iam']
+        };
+        
+        const filtered = {};
+        for (const [serviceName, items] of Object.entries(resources)) {
+            if (serviceCategories[view].some(category => 
+                serviceName.toLowerCase().includes(category))) {
+                filtered[serviceName] = items;
+            }
+        }
+        return filtered;
+    }
+    
+    // Function to render resources
+    function renderResources(resources) {
+        const container = document.getElementById('resources-container');
+        container.innerHTML = '';
+        
+        if (!resources || Object.keys(resources).length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-info">
+                    No resources found for the selected view.
+                </div>
+            `;
+        } else {
+            for (const [serviceName, items] of Object.entries(resources)) {
+                if (!items || items.length === 0) continue;
+                
+                const card = document.createElement('div');
+                card.className = 'card mb-4';
+                card.innerHTML = `
+                    <div class="card-header">
+                        <h5 class="mb-0">${serviceName}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        ${Object.keys(items[0]).map(header => 
+                                            `<th>${header}</th>`).join('')}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${items.map(item => `
+                                        <tr>
+                                            ${Object.values(item).map(value => 
+                                                `<td>${value}</td>`).join('')}
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            }
+        }
+        
+        // Initialize DataTables
+        const tables = container.getElementsByTagName('table');
+        for (const table of tables) {
+            $(table).DataTable({
+                pageLength: 10,
+                order: [[0, 'asc']]
+            });
+        }
+        
+        document.getElementById('loading').style.display = 'none';
+        container.style.display = 'block';
+    }
+    
+    // Function to refresh cache
+    async function refreshCache() {
+        try {
+            const button = document.getElementById('refresh-cache');
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+            
+            const response = await fetch('/api/resources/refresh', {
+                method: 'POST'
+            });
+            
+            if (!response.ok) throw new Error('Failed to refresh cache');
+            
+            // Reload the page to show fresh data
+            window.location.reload();
+        } catch (error) {
+            console.error('Error refreshing cache:', error);
+            alert('Error refreshing cache. Please try again.');
+            
+            const button = document.getElementById('refresh-cache');
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Cache';
+        }
+    }
+    
+    // Handle view changes
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const view = this.getAttribute('href').split('view=')[1] || 'all';
+            window.location.href = this.getAttribute('href');
+        });
+    });
+    
+    // Handle cache refresh button
+    document.getElementById('refresh-cache').addEventListener('click', refreshCache);
+    
+    // Initial render
+    renderResources({{ resources|tojson|safe }});
+});
+</script>
+{% endblock %} 

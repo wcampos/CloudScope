@@ -1,0 +1,47 @@
+{% extends "base.html.j2" %}
+
+{% block title %}Error - AWS Inventory{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Error</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <h5 class="alert-heading">An error occurred</h5>
+                        <p class="mb-0">{{ error }}</p>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h5>Possible causes:</h5>
+                        <ul>
+                            <li>Invalid or expired AWS credentials</li>
+                            <li>Insufficient AWS permissions</li>
+                            <li>Network connectivity issues</li>
+                            <li>Service-specific errors</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h5>Recommended actions:</h5>
+                        <ol>
+                            <li>Check your AWS credentials in the <a href="{{ url_for('profiles') }}">Profiles</a> page</li>
+                            <li>Verify your AWS IAM permissions</li>
+                            <li>Check your network connection</li>
+                            <li>Review the application logs for more details</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Return to Dashboard</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

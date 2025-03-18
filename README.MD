@@ -1,196 +1,162 @@
-# AWS Inventory
+# AWS Inventory Management System
 
-[![Tests](https://github.com/wcampos/aws_inventory/actions/workflows/test.yml/badge.svg)](https://github.com/wcampos/aws_inventory/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/wcampos/aws_inventory/branch/main/graph/badge.svg)](https://codecov.io/gh/wcampos/aws_inventory)
-[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-%23FE5196?logo=conventionalcommits&logoColor=white)](https://conventionalcommits.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+A containerized web application for managing and monitoring AWS resources across multiple accounts and regions.
 
-A Flask web application for viewing and managing AWS resources with a modern, responsive interface.
+## Architecture
 
-## Features
+The application is split into three main components:
 
-### Dashboard
-- Unified view of all AWS resources
-- Filter resources by category (Compute, Storage, Network)
-- Interactive tables with sorting, searching, and pagination
-- Responsive design for all devices
+1. **API Service (Port 5000)**
+   - Handles AWS resource management
+   - Provides RESTful endpoints
+   - Manages database operations
+   - Built with Flask-RESTful and SQLAlchemy
 
-### AWS Services Support
-- EC2 instances and related resources
-  - Instance details and status
-  - VPCs and Subnets
-  - Security Groups and rules
-- Database Services
-  - RDS instances
-  - DynamoDB tables
-- Storage
-  - S3 buckets with region information
-- Serverless
-  - Lambda functions with runtime details
-- Load Balancing
-  - Application Load Balancers
-  - Target Groups
+2. **UI Service (Port 8000)**
+   - Provides web interface
+   - Communicates with API service
+   - Handles user interactions
+   - Built with Flask and Bootstrap
 
-### Profile Management
-- Multiple AWS profile support
-- Secure credential storage
-- Easy profile switching
-- Region selection
+3. **Database Service**
+   - PostgreSQL database
+   - Stores AWS profile information
+   - Manages application state
 
-## Requirements
+## Prerequisites
 
-- Python 3.13
-- PostgreSQL database
-- AWS credentials
-- Docker (optional, for containerized deployment)
+- Docker and Docker Compose
+- Make (optional, but recommended)
+- AWS credentials with appropriate permissions
 
-## Installation
+## Quick Start
 
 1. Clone the repository:
-```bash
-git clone https://github.com/wcampos/aws_inventory.git
-cd aws_inventory
-```
+   ```bash
+   git clone https://github.com/yourusername/aws_inventory.git
+   cd aws_inventory
+   ```
 
-2. Set up environment variables:
-```bash
-# Copy the example environment file
-cp .env.example .env
+2. Start the application:
+   ```bash
+   make up
+   ```
 
-# Edit the .env file with your configuration
-vim .env
-```
+3. Access the application:
+   - Web UI: http://localhost:8000
+   - API: http://localhost:5000
 
-The following environment variables are available:
-- **Database Configuration**
-  - `DATABASE_URL`: Complete database URL (optional, constructed from individual settings if not provided)
-  - `DB_HOST`: Database host (default: localhost)
-  - `DB_PORT`: Database port (default: 5432)
-  - `DB_NAME`: Database name (default: awsprofiles)
-  - `DB_USER`: Database user (default: awsuser)
-  - `DB_PASSWORD`: Database password (default: awspass)
-- **Flask Configuration**
-  - `FLASK_APP`: Application entry point (default: app.py)
-  - `FLASK_ENV`: Environment (development/production)
-  - `SECRET_KEY`: Secret key for session management
-- **Logging Configuration**
-  - `LOG_LEVEL`: Logging level (default: INFO)
-  - `LOG_FILE`: Log file path (default: logs/aws_inventory.log)
-  - `LOG_MAX_BYTES`: Maximum log file size (default: 10240)
-  - `LOG_BACKUP_COUNT`: Number of backup log files (default: 10)
+## Available Make Commands
 
-3. Set up the development environment:
-```bash
-make setup
-```
-This will:
-- Create a virtual environment
-- Install dependencies
-- Set up the database
-- Run initial migrations
+- `make build` - Build all Docker images
+- `make up` - Start all containers
+- `make down` - Stop and remove all containers
+- `make logs` - View logs from all containers
+- `make ps` - List running containers
+- `make clean` - Remove all containers, volumes, and images
+- `make test` - Run tests
+- `make migrate` - Run database migrations
 
-4. Configure your AWS credentials either through:
-- AWS CLI: `aws configure`
-- Web interface: Add profile through the application
+Development shortcuts:
+- `make dev-api` - View API service logs
+- `make dev-ui` - View UI service logs
+- `make dev-db` - View database logs
 
-## Usage
+Database management:
+- `make db-shell` - Open PostgreSQL shell
+- `make db-backup` - Create database backup
+- `make db-restore FILE=<backup-file>` - Restore database from backup
 
-### Local Development
-```bash
-python app.py
-```
-Access the application at `http://localhost:5000`
+Service management:
+- `make restart-api` - Rebuild and restart API service
+- `make restart-ui` - Rebuild and restart UI service
+- `make health-check` - Check services health
 
-### Docker Deployment
-```bash
-# Build and start services
-make dev-setup
+## API Endpoints
 
-# Stop services
-make docker-down
-```
+### Profiles
+- `GET /api/profiles` - List all AWS profiles
+- `POST /api/profiles` - Create new AWS profile
+- `GET /api/profiles/<id>` - Get specific profile
+- `PUT /api/profiles/<id>` - Update profile
+- `DELETE /api/profiles/<id>` - Delete profile
+
+### AWS Resources
+- `GET /api/resources` - Get AWS resources for active profile
+
+### Health Check
+- `GET /health` - Service health status
 
 ## Development
 
-### Release Process
-
-To create a new release:
-1. Create a new branch with the format `release/X.Y.Z` (e.g., `release/1.0.0`)
-2. Make your changes and update version numbers as needed
-3. Create a PR with the same version in the title (e.g., "release/1.0.0: Description of changes")
-4. When the PR is merged to main, a GitHub Action will automatically:
-   - Create a new tag with the version number
-   - Generate a ZIP file of the release
-   - Create a GitHub Release with release notes
-
-### Database Management
-```bash
-# Create a new migration
-make migrate-create name=migration_name
-
-# Run migrations
-make migrate-run
-
-# Check migration status
-make migrate-status
+### Project Structure
+```
+aws_inventory/
+├── api/
+│   ├── app.py
+│   ├── aws_classes.py
+│   ├── models.py
+│   ├── migrations/
+│   └── requirements.txt
+├── ui/
+│   ├── app.py
+│   ├── templates/
+│   ├── static/
+│   └── requirements.txt
+├── docker-compose.yml
+├── Makefile
+└── README.md
 ```
 
-### Testing
-```bash
-# Run all tests
-make test
+### Adding New Features
 
-# Run with coverage
-make test-coverage
-```
+1. API Changes:
+   - Add new endpoints in `api/app.py`
+   - Update models in `api/models.py`
+   - Create database migrations if needed
 
-### Code Quality
-```bash
-# Format code
-make format
+2. UI Changes:
+   - Add new routes in `ui/app.py`
+   - Create/update templates in `ui/templates/`
+   - Add static files in `ui/static/`
 
-# Run linter
-make lint
+### Database Migrations
 
-# Run all checks
-make all
-```
+1. Create a new migration:
+   ```bash
+   make migrate
+   ```
 
-The project uses:
-- Black for code formatting
-- Pylint for code linting
-- Pytest for testing
-- Conventional Commits for commit messages
+2. Apply migrations:
+   ```bash
+   make up
+   ```
 
-### Commit Message Format
+## Configuration
 
-This project follows [Conventional Commits](https://www.conventionalcommits.org/). Each commit message should be structured as follows:
+Environment variables:
+- `FLASK_ENV` - Environment (development/production)
+- `DATABASE_URL` - PostgreSQL connection URL
+- `API_BASE_URL` - API service URL
+- `FLASK_SECRET_KEY` - Flask session secret key
 
-```
-<type>[optional scope]: <description>
+## Security
 
-[optional body]
-
-[optional footer(s)]
-```
-
-Types:
-- feat: A new feature
-- fix: A bug fix
-- docs: Documentation only changes
-- style: Changes that do not affect the meaning of the code
-- refactor: A code change that neither fixes a bug nor adds a feature
-- test: Adding missing tests or correcting existing tests
-- chore: Changes to the build process or auxiliary tools
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- AWS credentials are stored securely in the database
+- All sensitive data is encrypted at rest
+- CORS is enabled for API service
+- Non-root users are used in containers
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
-Please make sure to update tests as appropriate.
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 
