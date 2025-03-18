@@ -9,6 +9,7 @@ import configparser
 from aws_classes import CommonAWSServices
 from extensions import db, migrate
 from models import AWSProfile, SchemaVersion
+from utils import DateTimeEncoder
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -17,6 +18,9 @@ logger = logging.getLogger(__name__)
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)
+
+# Configure JSON encoder
+app.json_encoder = DateTimeEncoder
 
 # Configure database
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(

@@ -34,8 +34,8 @@ class AWSProfile(db.Model):
     aws_session_token = db.Column(db.Text)
     aws_region = db.Column(db.String(50), nullable=False)
     is_active = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     def __repr__(self):
         return f'<AWSProfile {self.name}>'
@@ -45,11 +45,13 @@ class AWSProfile(db.Model):
         return {
             'id': self.id,
             'name': self.name,
+            'custom_name': self.custom_name,
+            'account_number': self.account_number,
             'aws_region': self.aws_region,
             'aws_session_token': self.aws_session_token,
             'is_active': self.is_active,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
     @classmethod
