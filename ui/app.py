@@ -15,6 +15,17 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key')
 
+# Add context processor to make active profile available to all templates
+@app.context_processor
+def inject_active_profile():
+    try:
+        profiles = api_request('GET', '/api/profiles')
+        active_profile = next((p for p in profiles if p.get('is_active')), None)
+        return dict(active_profile=active_profile)
+    except Exception as e:
+        logger.warning(f"Could not fetch active profile: {str(e)}")
+        return dict(active_profile=None)
+
 # Initialize Redis client
 redis_client = redis.Redis(
     host=os.getenv('REDIS_HOST', 'redis'),

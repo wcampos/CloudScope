@@ -20,7 +20,7 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
+                <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
                     </li>
@@ -31,6 +31,17 @@
                         <a class="nav-link" href="{{ url_for('settings') }}">Settings</a>
                     </li>
                 </ul>
+                {% if active_profile %}
+                <div class="navbar-text text-light">
+                    <span class="me-2">Active Profile:</span>
+                    <span class="badge bg-primary">{{ active_profile.custom_name or active_profile.name }}</span>
+                    <small class="text-muted ms-2">({{ active_profile.aws_region }})</small>
+                </div>
+                {% else %}
+                <div class="navbar-text text-warning">
+                    <a href="{{ url_for('profiles') }}" class="text-warning text-decoration-none">No Active Profile</a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </nav>
