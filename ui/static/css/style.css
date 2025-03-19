@@ -123,8 +123,7 @@ main {
 }
 
 .card-header .btn-link::after {
-    content: '\f282';
-    font-family: 'Bootstrap Icons';
+    content: '▼';
     float: right;
     transition: transform 0.2s ease-in-out;
     margin-left: 0.5rem;
