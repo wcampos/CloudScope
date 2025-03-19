@@ -200,21 +200,29 @@ def dashboard():
         if view != 'summary':
             filtered_resources = {}
             if view == 'compute':
-                compute_services = ['EC2 Instances', 'EC2 Volumes', 'EC2 AMIs', 'EC2 Snapshots', 
-                                  'ECS Clusters', 'ECS Services', 'EKS Clusters', 'Lambda Functions']
+                compute_services = ['EC2 Instances', 'ECS Clusters', 'EKS Clusters', 'Lambda Functions', 'Elastic Beanstalk Applications']
                 filtered_resources = {k: v for k, v in resources.items() if k in compute_services}
+            elif view == 'ec2_other':
+                ec2_other_services = ['EC2 Volumes', 'EC2 AMIs', 'EC2 Snapshots']
+                filtered_resources = {k: v for k, v in resources.items() if k in ec2_other_services}
             elif view == 'storage':
-                storage_services = ['RDS Instances', 'S3 Buckets', 'DynamoDB Tables']
+                storage_services = ['S3 Buckets', 'EBS Volumes', 'EFS File Systems']
                 filtered_resources = {k: v for k, v in resources.items() if k in storage_services}
+            elif view == 'data':
+                data_services = ['RDS Instances', 'DynamoDB Tables', 'ElastiCache Clusters', 'Redshift Clusters', 'DocumentDB Clusters']
+                filtered_resources = {k: v for k, v in resources.items() if k in data_services}
             elif view == 'network':
-                network_services = ['VPCs', 'Subnets', 'Security Groups', 'Security Group Rules',
-                                  'Route53 Hosted Zones', 'SSL Certificates']
+                network_services = ['VPCs', 'Subnets', 'Security Groups', 'Load Balancers', 'Route Tables']
                 filtered_resources = {k: v for k, v in resources.items() if k in network_services}
+            elif view == 'route53':
+                route53_services = ['Route53 Hosted Zones', 'Route53 Records']
+                filtered_resources = {k: v for k, v in resources.items() if k in route53_services}
+            elif view == 'acm':
+                acm_services = ['SSL Certificates']
+                filtered_resources = {k: v for k, v in resources.items() if k in acm_services}
             elif view == 'service':
-                service_services = ['Load Balancers', 'Target Groups']
+                service_services = ['Target Groups']
                 filtered_resources = {k: v for k, v in resources.items() if k in service_services}
-                # Log service resources for debugging
-                logger.debug(f"Service view resources: {filtered_resources}")
             resources = filtered_resources
 
         # Log resources for debugging

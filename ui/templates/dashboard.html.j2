@@ -26,6 +26,9 @@
             <a class="nav-link {% if current_view == 'compute' %}active{% endif %}" href="{{ url_for('dashboard', view='compute') }}">Compute</a>
         </li>
         <li class="nav-item">
+            <a class="nav-link {% if current_view == 'ec2_other' %}active{% endif %}" href="{{ url_for('dashboard', view='ec2_other') }}">EC2 Other</a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link {% if current_view == 'storage' %}active{% endif %}" href="{{ url_for('dashboard', view='storage') }}">Storage</a>
         </li>
         <li class="nav-item">
@@ -33,6 +36,12 @@
         </li>
         <li class="nav-item">
             <a class="nav-link {% if current_view == 'network' %}active{% endif %}" href="{{ url_for('dashboard', view='network') }}">Network</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_view == 'route53' %}active{% endif %}" href="{{ url_for('dashboard', view='route53') }}">Route53</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_view == 'acm' %}active{% endif %}" href="{{ url_for('dashboard', view='acm') }}">ACM</a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if current_view == 'service' %}active{% endif %}" href="{{ url_for('dashboard', view='service') }}">Service</a>
@@ -51,12 +60,31 @@
             <h5 class="text-muted mb-2">Compute</h5>
             <div class="row">
                 {% for service_name, count in summary.items() %}
-                    {% if service_name in ['EC2 Instances', 'ECS Clusters', 'Lambda Functions', 'Elastic Beanstalk Applications'] %}
+                    {% if service_name in ['EC2 Instances', 'ECS Clusters', 'EKS Clusters', 'Lambda Functions', 'Elastic Beanstalk Applications'] %}
                     <div class="col-md-3 mb-2">
                         <div class="card h-100">
                             <div class="card-body">
                                 <h6 class="card-title">{{ service_name }}</h6>
                                 <a href="{{ url_for('dashboard', view='compute') }}" class="card-text display-6 text-decoration-none">{{ count }}</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- EC2 Other Resources -->
+        <div class="col-12 mb-3">
+            <h5 class="text-muted mb-2">EC2 Other</h5>
+            <div class="row">
+                {% for service_name, count in summary.items() %}
+                    {% if service_name in ['EC2 Volumes', 'EC2 AMIs', 'EC2 Snapshots'] %}
+                    <div class="col-md-3 mb-2">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">{{ service_name }}</h6>
+                                <a href="{{ url_for('dashboard', view='ec2_other') }}" class="card-text display-6 text-decoration-none">{{ count }}</a>
                             </div>
                         </div>
                     </div>
@@ -122,15 +150,55 @@
             </div>
         </div>
 
+        <!-- Route53 Resources -->
+        <div class="col-12 mb-3">
+            <h5 class="text-muted mb-2">Route53</h5>
+            <div class="row">
+                {% for service_name, count in summary.items() %}
+                    {% if service_name in ['Route53 Hosted Zones', 'Route53 Records'] %}
+                    <div class="col-md-3 mb-2">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">{{ service_name }}</h6>
+                                <a href="{{ url_for('dashboard', view='route53') }}" class="card-text display-6 text-decoration-none">{{ count }}</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- ACM Resources -->
+        <div class="col-12 mb-3">
+            <h5 class="text-muted mb-2">ACM</h5>
+            <div class="row">
+                {% for service_name, count in summary.items() %}
+                    {% if service_name in ['SSL Certificates'] %}
+                    <div class="col-md-3 mb-2">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">{{ service_name }}</h6>
+                                <a href="{{ url_for('dashboard', view='acm') }}" class="card-text display-6 text-decoration-none">{{ count }}</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
         <!-- Other Services -->
         <div class="col-12 mb-3">
             <h5 class="text-muted mb-2">Other Services</h5>
             <div class="row">
                 {% for service_name, count in summary.items() %}
-                    {% if service_name not in ['EC2 Instances', 'ECS Clusters', 'Lambda Functions', 'Elastic Beanstalk Applications',
+                    {% if service_name not in ['EC2 Instances', 'ECS Clusters', 'EKS Clusters', 'Lambda Functions', 'Elastic Beanstalk Applications',
+                                            'EC2 Volumes', 'EC2 AMIs', 'EC2 Snapshots',
                                             'S3 Buckets', 'EBS Volumes', 'EFS File Systems',
                                             'RDS Instances', 'DynamoDB Tables', 'ElastiCache Clusters', 'Redshift Clusters', 'DocumentDB Clusters',
-                                            'VPCs', 'Subnets', 'Security Groups', 'Load Balancers', 'Route Tables'] %}
+                                            'VPCs', 'Subnets', 'Security Groups', 'Load Balancers', 'Route Tables',
+                                            'Route53 Hosted Zones', 'Route53 Records', 'SSL Certificates'] %}
                     <div class="col-md-3 mb-2">
                         <div class="card h-100">
                             <div class="card-body">
