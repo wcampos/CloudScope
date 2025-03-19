@@ -350,18 +350,27 @@ def health_check():
             'timestamp': datetime.now(UTC).isoformat()
         }, 500
 
-@app.route('/api/resources/refresh', methods=['POST'])
+@app.route('/api/resources/refresh')
 def refresh_resources():
     """Force refresh of resources cache"""
     try:
-        # Fetch fresh resources
-        resources = api_request('GET', '/api/resources')
+        # Get active profile
+        active_profile = get_active_profile()
+        if not active_profile:
+            return {'message': 'No active profile found'}, 400
+
+        # Fetch fresh resources from API
+        resources = get_resources_from_api()
+        if not resources:
+            return {'message': 'Failed to fetch resources from API'}, 500
+
         # Update cache
-        update_cache(resources)
-        return {'status': 'success', 'message': 'Resources cache refreshed'}
+        cache_resources(resources)
+        
+        return {'message': 'Resources refreshed successfully'}
     except Exception as e:
-        logger.error(f"Error refreshing resources cache: {str(e)}")
-        return {'status': 'error', 'message': str(e)}, 500
+        logger.error(f"Error refreshing resources: {str(e)}")
+        return {'message': str(e)}, 500
 
 # Log all registered routes
 with app.app_context():
