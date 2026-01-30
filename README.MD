@@ -64,6 +64,20 @@ The application is split into three main components:
    - Web UI: http://localhost:3000
    - API: http://localhost:5001
 
+## Screenshots
+
+**Dashboard** — AWS resources by category (Compute, Storage, Network, Services). Empty state when no resources are loaded.
+
+![CloudScope Dashboard (empty)](docs/images/dashboard-empty.png)
+
+**Profiles** — Add and manage AWS profiles (access keys, role configuration, paste credentials).
+
+![CloudScope Profiles](docs/images/profiles.png)
+
+**Settings** — Service health, version, environment, and technology stack.
+
+![CloudScope Settings](docs/images/settings.png)
+
 ## Available Make Commands
 
 - `make build` - Build all Docker images
