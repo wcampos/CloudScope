@@ -1,0 +1,16 @@
+# Gitleaks allowlist: exclude example/placeholder content (docs, .env.example, tests)
+# https://github.com/gitleaks/gitleaks#configuration
+
+[allowlist]
+description = "Placeholders and examples only"
+paths = [
+  ".env.example",
+  "docs/",
+  "**/test*.py",
+  "**/conftest.py"
+]
+regexes = [
+  "AKIAXXXXXXXXXXXXXXXX",
+  "your-.*-key",
+  "test-key|test-secret|testing"
+]

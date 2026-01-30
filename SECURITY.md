@@ -1,5 +1,11 @@
 # Security Policy
 
+## Preventing secrets in the repo
+
+- **Do not commit** real AWS keys, passwords, `.env` files (use `.env.example` as a template), or private keys (e.g. `.pem`).
+- **CI** runs a secret scan (Gitleaks) on push/PR; commits that appear to contain secrets will fail the check.
+- **API** does not return `aws_access_key_id` or `aws_secret_access_key` in profile GET/list responses; only non-sensitive fields are exposed.
+
 ## Supported Versions
 
 Use this section to tell people about which versions of your project are

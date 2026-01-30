@@ -1,7 +1,13 @@
-# Environment variables
+# Environment variables and secrets
 .env
 .env.*
 !.env.example
+*.pem
+*credentials*
+*secrets*.yml
+*secrets*.yaml
+*.key
+backup-*.sql
 
 # Python
 __pycache__/

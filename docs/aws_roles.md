@@ -62,8 +62,8 @@ Here's an example of a complete profile configuration:
 ```json
 {
     "name": "cross-account-role",
-    "aws_access_key_id": "AKIAXXXXXXXXXXXXXXXX",
-    "aws_secret_access_key": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "aws_access_key_id": "YOUR_ACCESS_KEY_ID",
+    "aws_secret_access_key": "YOUR_SECRET_ACCESS_KEY",
     "aws_session_token": {
         "RoleArn": "arn:aws:iam::123456789012:role/AWSInventoryRole",
         "RoleSessionName": "aws_inventory_session"
