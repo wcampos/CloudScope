@@ -1,10 +1,10 @@
-# Using AWS Roles with AWS Inventory
+# Using AWS Roles with CloudScope
 
-This document explains how to use AWS roles with the AWS Inventory application.
+This document explains how to use AWS roles with the CloudScope application.
 
 ## Overview
 
-AWS Inventory supports using AWS IAM roles for accessing AWS resources. This is particularly useful when:
+CloudScope supports using AWS IAM roles for accessing AWS resources. This is particularly useful when:
 - Working with AWS Organizations and cross-account access
 - Using temporary credentials from AWS STS
 - Implementing role-based access control (RBAC)

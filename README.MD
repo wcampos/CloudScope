@@ -1,6 +1,25 @@
-# AWS Inventory Management System
+# CloudScope
 
 A containerized web application for managing and monitoring AWS resources across multiple accounts and regions.
+
+---
+
+## Project Status & Disclaimer
+
+**CloudScope is an evolving project.**
+
+This project originated as an internal tooling experiment and reflects an older idea that continues to evolve over time. While it is actively maintained on an as-needed basis, it is not intended to be a production-grade AWS management or monitoring platform.
+
+CloudScope is best suited for:
+
+- **Local or lab environments**
+- **Lightweight AWS resource visibility** across profiles and regions
+- **Learning, experimentation, and customization**
+- **Small-scale internal use**
+
+Features, architecture, and implementation details may change as the project evolves. Production hardening, enterprise support, and long-term stability guarantees are out of scope for this repository.
+
+---
 
 ## Architecture
 
@@ -12,11 +31,10 @@ The application is split into three main components:
    - Manages database operations
    - Built with Flask-RESTful and SQLAlchemy
 
-2. **UI Service (Port 8000)**
-   - Provides web interface
+2. **Frontend (Port 3000)**
+   - React SPA (CloudScope UI)
    - Communicates with API service
-   - Handles user interactions
-   - Built with Flask and Bootstrap
+   - Built with Vite, React, TypeScript
 
 3. **Database Service**
    - PostgreSQL database
@@ -34,7 +52,7 @@ The application is split into three main components:
 1. Clone the repository:
    ```bash
    git clone https://github.com/yourusername/aws_inventory.git
-   cd aws_inventory
+   cd aws_inventory  # or your clone directory
    ```
 
 2. Start the application:
@@ -43,8 +61,8 @@ The application is split into three main components:
    ```
 
 3. Access the application:
-   - Web UI: http://localhost:8000
-   - API: http://localhost:5000
+   - Web UI: http://localhost:3000
+   - API: http://localhost:5001
 
 ## Available Make Commands
 
@@ -59,7 +77,7 @@ The application is split into three main components:
 
 Development shortcuts:
 - `make dev-api` - View API service logs
-- `make dev-ui` - View UI service logs
+- `make dev-frontend` - View frontend logs
 - `make dev-db` - View database logs
 
 Database management:
@@ -69,7 +87,7 @@ Database management:
 
 Service management:
 - `make restart-api` - Rebuild and restart API service
-- `make restart-ui` - Rebuild and restart UI service
+- `make restart-frontend` - Rebuild and restart frontend
 - `make health-check` - Check services health
 
 ## API Endpoints
@@ -91,18 +109,17 @@ Service management:
 
 ### Project Structure
 ```
-aws_inventory/
+aws_inventory/  # or cloudscope/
 ├── api/
 │   ├── app.py
 │   ├── aws_classes.py
 │   ├── models.py
 │   ├── migrations/
 │   └── requirements.txt
-├── ui/
-│   ├── app.py
-│   ├── templates/
-│   ├── static/
-│   └── requirements.txt
+├── frontend/
+│   ├── src/          # React app (Vite + TypeScript)
+│   ├── package.json
+│   └── Dockerfile
 ├── docker-compose.yml
 ├── Makefile
 └── README.md
@@ -115,10 +132,9 @@ aws_inventory/
    - Update models in `api/models.py`
    - Create database migrations if needed
 
-2. UI Changes:
-   - Add new routes in `ui/app.py`
-   - Create/update templates in `ui/templates/`
-   - Add static files in `ui/static/`
+2. Frontend Changes:
+   - Add or update components in `frontend/src/`
+   - API integration in `frontend/src/api/` and hooks in `frontend/src/hooks/`
 
 ### Database Migrations
 

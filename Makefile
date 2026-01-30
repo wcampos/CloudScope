@@ -52,19 +52,19 @@ migrate:
 dev-api:
 	docker-compose logs -f api
 
-dev-ui:
-	docker-compose logs -f ui
+dev-frontend:
+	docker-compose logs -f frontend
 
 dev-db:
 	docker-compose logs -f db
 
 # Database management
 db-shell:
-	docker-compose exec db psql -U awsuser -d awsprofiles
+	docker-compose exec db psql -U cloudscope -d cloudscope
 
 db-backup:
 	@echo "Creating database backup..."
-	@docker-compose exec db pg_dump -U awsuser awsprofiles > backup-$$(date +%Y%m%d-%H%M%S).sql
+	@docker-compose exec db pg_dump -U cloudscope cloudscope > backup-$$(date +%Y%m%d-%H%M%S).sql
 
 db-restore:
 	@if [ -z "$$FILE" ]; then \
@@ -72,18 +72,17 @@ db-restore:
 		exit 1; \
 	fi
 	@echo "Restoring database from $$FILE..."
-	@docker-compose exec -T db psql -U awsuser awsprofiles < $$FILE
+	@docker-compose exec -T db psql -U cloudscope cloudscope < $$FILE
 
 # Rebuild and restart specific services
 restart-api:
 	docker-compose up -d --build api
 
-restart-ui:
-	docker-compose up -d --build ui
+restart-frontend:
+	docker-compose up -d --build frontend
 
 # View service health
 health-check:
 	@echo "Checking API health..."
-	@curl -s http://localhost:5000/health
-	@echo "\nChecking UI health..."
-	@curl -s http://localhost:8000/health 
+	@curl -s http://localhost:5001/health
+	@echo "\nFrontend: http://localhost:3000" 

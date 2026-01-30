@@ -1,4 +1,4 @@
-version: '3.8'
+name: cloudscope
 
 services:
   api:
@@ -15,12 +15,12 @@ services:
       - ./api:/app
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=postgresql://aws_inventory:aws_inventory@db:5432/aws_inventory
+      - DATABASE_URL=postgresql://cloudscope:cloudscope@db:5432/cloudscope
       - FLASK_APP=app.py
       - FLASK_DEBUG=1
-      - POSTGRES_USER=aws_inventory
-      - POSTGRES_PASSWORD=aws_inventory
-      - POSTGRES_DB=aws_inventory
+      - POSTGRES_USER=cloudscope
+      - POSTGRES_PASSWORD=cloudscope
+      - POSTGRES_DB=cloudscope
     depends_on:
       db:
         condition: service_healthy
@@ -31,46 +31,28 @@ services:
       retries: 3
       start_period: 10s
 
-  ui:
+  frontend:
     build:
-      context: .
-      dockerfile: ui/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
-      - "8001:8000"
-    volumes:
-      - ./ui:/app
-    environment:
-      - FLASK_ENV=development
-      - FLASK_APP=app.py
-      - FLASK_DEBUG=1
-      - API_BASE_URL=http://api:5000
-      - FLASK_SECRET_KEY=your-secret-key-here
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - "3000:80"
     depends_on:
       api:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
 
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: aws_inventory
-      POSTGRES_USER: aws_inventory
-      POSTGRES_PASSWORD: aws_inventory
+      POSTGRES_DB: cloudscope
+      POSTGRES_USER: cloudscope
+      POSTGRES_PASSWORD: cloudscope
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U aws_inventory"]
+      test: ["CMD-SHELL", "pg_isready -U cloudscope"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -78,7 +60,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -93,11 +75,11 @@ services:
       dockerfile: api/Dockerfile
     environment:
       - FLASK_APP=app.py
-      - DATABASE_URL=postgresql://aws_inventory:aws_inventory@db:5432/aws_inventory
+      - DATABASE_URL=postgresql://cloudscope:cloudscope@db:5432/cloudscope
       - FLASK_ENV=development
-      - POSTGRES_USER=aws_inventory
-      - POSTGRES_PASSWORD=aws_inventory
-      - POSTGRES_DB=aws_inventory
+      - POSTGRES_USER=cloudscope
+      - POSTGRES_PASSWORD=cloudscope
+      - POSTGRES_DB=cloudscope
       - FLASK_DEBUG=1
     volumes:
       - ./api:/app
@@ -113,20 +95,18 @@ services:
 volumes:
   # Application volumes
   app_data:
-    name: aws_inventory_app_data
+    name: cloudscope_app_data
   app_logs:
-    name: aws_inventory_app_logs
+    name: cloudscope_app_logs
   app_static:
-    name: aws_inventory_app_static
+    name: cloudscope_app_static
   app_uploads:
-    name: aws_inventory_app_uploads
-  
+    name: cloudscope_app_uploads
+
   # Database volumes
   postgres_data:
-    name: aws_inventory_postgres_data
+    name: cloudscope_postgres_data
   redis_data:
-    name: aws_inventory_redis_data
+    name: cloudscope_redis_data
   api_logs:
-    name: aws_inventory_api_logs
-  ui_logs:
-    name: aws_inventory_ui_logs 
+    name: cloudscope_api_logs 

@@ -1,4 +1,4 @@
-"""Database models for the AWS Inventory application."""
+"""Database models for the CloudScope application."""
 from datetime import datetime, UTC
 from sqlalchemy import String, DateTime
 import boto3

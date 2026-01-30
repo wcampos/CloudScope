@@ -1,4 +1,4 @@
-"""AWS Inventory Flask Application.
+"""CloudScope Flask Application.
 
 This module provides a web interface for managing AWS resources and profiles.
 It includes functionality for viewing AWS resources, managing profiles,
@@ -59,7 +59,7 @@ file_handler.setFormatter(logging.Formatter(
 file_handler.setLevel(getattr(logging, os.environ.get('LOG_LEVEL', 'INFO')))
 app.logger.addHandler(file_handler)
 app.logger.setLevel(getattr(logging, os.environ.get('LOG_LEVEL', 'INFO')))
-app.logger.info('AWS Inventory startup')
+app.logger.info('CloudScope startup')
 
 # Flask configuration
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev')

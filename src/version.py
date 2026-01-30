@@ -1,4 +1,4 @@
-"""Version information for the AWS Inventory application."""
+"""Version information for the CloudScope application."""
 import os
 import subprocess
 

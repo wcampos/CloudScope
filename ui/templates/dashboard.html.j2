@@ -1,6 +1,6 @@
 {% extends "base.html.j2" %}
 
-{% block title %}Dashboard - AWS Inventory{% endblock %}
+{% block title %}Dashboard - CloudScope{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -20,13 +20,13 @@
         </div>
     </div>
 
-    <div id="loading" class="text-center py-5">
+    <div id="loading" class="text-center py-5" style="{% if resources %}display: none;{% endif %}">
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>
     </div>
 
-    <div id="resources-container" style="display: none;">
+    <div id="resources-container" style="{% if not resources %}display: none;{% endif %}">
         {% if not resources %}
             <div class="alert alert-info">
                 No resources found for the selected view.

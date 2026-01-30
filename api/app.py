@@ -4,6 +4,7 @@ from flask_restx import Api, Resource, fields
 from datetime import datetime, UTC
 import os
 import logging
+import json
 import boto3
 import configparser
 from aws_classes import CommonAWSServices
@@ -30,7 +31,7 @@ db.init_app(app)
 migrate.init_app(app, db)
 
 # Initialize API documentation
-api = Api(app, version='1.0', title='AWS Inventory API',
+api = Api(app, version='1.0', title='CloudScope API',
           description='API for managing AWS profiles and resources',
           prefix='/api',
           doc='/api/docs')
@@ -39,7 +40,7 @@ api = Api(app, version='1.0', title='AWS Inventory API',
 with app.app_context():
     db.create_all()
 
-# Define API models for documentation
+# Define API models for documentation (input: may include secrets for create)
 profile_model = api.model('Profile', {
     'id': fields.Integer(readonly=True, description='Profile ID'),
     'name': fields.String(required=True, description='Profile name'),
@@ -51,6 +52,80 @@ profile_model = api.model('Profile', {
     'account_number': fields.String(description='AWS account number'),
     'is_active': fields.Boolean(description='Profile active status')
 })
+
+# Safe profile model for GET/list responses (no secrets)
+profile_safe_model = api.model('ProfileSafe', {
+    'id': fields.Integer(readonly=True, description='Profile ID'),
+    'name': fields.String(description='Profile name'),
+    'custom_name': fields.String(description='Custom profile name'),
+    'aws_region': fields.String(description='AWS region'),
+    'account_number': fields.String(description='AWS account number'),
+    'is_active': fields.Boolean(description='Profile active status'),
+    'created_at': fields.DateTime(description='Created at'),
+    'updated_at': fields.DateTime(description='Updated at'),
+})
+
+
+def _resolve_session_token(data):
+    """Resolve aws_session_token from form-like payload (role_type, role_name, etc.)."""
+    role_type = data.get('role_type') or 'none'
+    session_token = None
+
+    if role_type == 'existing':
+        role_name = data.get('role_name')
+        if not role_name:
+            raise ValueError("Role name is required when using an existing role")
+        aws_access_key_id = data.get('aws_access_key_id')
+        aws_secret_access_key = data.get('aws_secret_access_key')
+        aws_region = data.get('aws_region')
+        if not all([aws_access_key_id, aws_secret_access_key, aws_region]):
+            raise ValueError("Access key, secret key, and region are required for role assumption")
+        temp_session = boto3.Session(
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name=aws_region
+        )
+        sts_client = temp_session.client('sts')
+        account_id = sts_client.get_caller_identity()['Account']
+        role_config = {
+            "RoleArn": f"arn:aws:iam::{account_id}:role/{role_name}",
+            "RoleSessionName": "aws_inventory_session"
+        }
+        session_token = json.dumps(role_config)
+
+    elif role_type == 'custom':
+        raw = data.get('aws_session_token')
+        if raw:
+            try:
+                role_config = json.loads(raw)
+                if isinstance(role_config, dict) and 'RoleArn' in role_config:
+                    if not role_config['RoleArn'].startswith('arn:aws:iam::'):
+                        raise ValueError("Invalid role ARN format")
+                    if not role_config.get('RoleSessionName'):
+                        role_config['RoleSessionName'] = 'aws_inventory_session'
+                    session_token = json.dumps(role_config)
+            except json.JSONDecodeError:
+                session_token = raw
+    else:
+        direct_token = data.get('direct_session_token')
+        if direct_token:
+            session_token = direct_token
+
+    return session_token
+
+
+def _profile_to_safe_dict(profile):
+    """Return profile dict without secrets for API responses."""
+    return {
+        'id': profile.id,
+        'name': profile.name,
+        'custom_name': profile.custom_name,
+        'aws_region': profile.aws_region,
+        'account_number': profile.account_number,
+        'is_active': profile.is_active,
+        'created_at': profile.created_at,
+        'updated_at': profile.updated_at,
+    }
 
 credentials_parser = api.model('Credentials', {
     'credentials_text': fields.String(required=True, description='AWS credentials in INI format')
@@ -64,43 +139,68 @@ ns_system = api.namespace('system', description='System operations')
 @ns_profiles.route('/')
 class ProfileListResource(Resource):
     @ns_profiles.doc('list_profiles')
-    @ns_profiles.marshal_list_with(profile_model)
+    @ns_profiles.marshal_list_with(profile_safe_model)
     def get(self):
-        """List all profiles"""
-        return AWSProfile.query.all()
+        """List all profiles (secrets excluded)"""
+        return [_profile_to_safe_dict(p) for p in AWSProfile.query.all()]
 
     @ns_profiles.doc('create_profile')
     @ns_profiles.expect(profile_model)
-    @ns_profiles.marshal_with(profile_model, code=201)
+    @ns_profiles.marshal_with(profile_safe_model, code=201)
     def post(self):
-        """Create a new profile"""
-        data = request.json
-        profile = AWSProfile(**data)
+        """Create a new profile (accepts form-like payload with role_type, role_name, etc.)"""
+        data = request.json or {}
+        name = data.get('name')
+        aws_access_key_id = data.get('aws_access_key_id')
+        aws_secret_access_key = data.get('aws_secret_access_key')
+        aws_region = data.get('aws_region')
+        if not name or not aws_access_key_id or not aws_secret_access_key or not aws_region:
+            api.abort(400, 'name, aws_access_key_id, aws_secret_access_key, aws_region are required')
+        try:
+            session_token = _resolve_session_token(data)
+        except ValueError as e:
+            api.abort(400, str(e))
+        profile = AWSProfile(
+            name=name,
+            custom_name=data.get('custom_name'),
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=session_token,
+            aws_region=aws_region
+        )
+        try:
+            account_info = profile.get_account_info()
+            if account_info:
+                profile.account_number = account_info['account']
+        except Exception as e:
+            logger.warning("Could not fetch account number for profile %s: %s", name, e)
         db.session.add(profile)
         db.session.commit()
-        return profile, 201
+        return _profile_to_safe_dict(profile), 201
 
 @ns_profiles.route('/<int:profile_id>')
 @ns_profiles.response(404, 'Profile not found')
 class ProfileResource(Resource):
     @ns_profiles.doc('get_profile')
-    @ns_profiles.marshal_with(profile_model)
+    @ns_profiles.marshal_with(profile_safe_model)
     def get(self, profile_id):
-        """Get a profile by ID"""
+        """Get a profile by ID (secrets excluded)"""
         profile = AWSProfile.query.get_or_404(profile_id)
-        return profile
+        return _profile_to_safe_dict(profile)
 
     @ns_profiles.doc('update_profile')
-    @ns_profiles.expect(profile_model)
-    @ns_profiles.marshal_with(profile_model)
+    @ns_profiles.expect(profile_safe_model)
+    @ns_profiles.marshal_with(profile_safe_model)
     def put(self, profile_id):
-        """Update a profile"""
+        """Update a profile (only custom_name and aws_region are updatable)"""
         profile = AWSProfile.query.get_or_404(profile_id)
-        data = request.json
-        for key, value in data.items():
-            setattr(profile, key, value)
+        data = request.json or {}
+        if 'custom_name' in data:
+            profile.custom_name = data['custom_name']
+        if 'aws_region' in data:
+            profile.aws_region = data['aws_region']
         db.session.commit()
-        return profile
+        return _profile_to_safe_dict(profile)
 
     @ns_profiles.doc('delete_profile')
     @ns_profiles.response(204, 'Profile deleted')
@@ -115,7 +215,7 @@ class ProfileResource(Resource):
 class ProfileParserResource(Resource):
     @ns_profiles.doc('parse_credentials')
     @ns_profiles.expect(credentials_parser)
-    @ns_profiles.marshal_with(profile_model, code=201)
+    @ns_profiles.marshal_with(profile_safe_model, code=201)
     def post(self):
         """Parse AWS credentials and create a profile"""
         data = request.json
@@ -170,7 +270,7 @@ class ProfileParserResource(Resource):
         db.session.add(new_profile)
         db.session.commit()
 
-        return new_profile, 201
+        return _profile_to_safe_dict(new_profile), 201
 
 @ns_profiles.route('/<int:profile_id>/activate')
 class ProfileActivationResource(Resource):
@@ -208,11 +308,56 @@ class AWSResourcesResource(Resource):
 
 @app.route('/health')
 def health_check():
-    """Health check endpoint"""
-    return {
+    """Health check endpoint with database status"""
+    health_status = {
         'status': 'healthy',
-        'timestamp': datetime.now(UTC).isoformat()
+        'timestamp': datetime.now(UTC).isoformat(),
+        'services': {}
     }
+
+    # Check database connection
+    try:
+        from sqlalchemy import text
+        db.session.execute(text('SELECT 1'))
+        health_status['services']['database'] = {
+            'status': 'healthy',
+            'message': 'Connected to PostgreSQL'
+        }
+    except Exception as e:
+        health_status['status'] = 'degraded'
+        health_status['services']['database'] = {
+            'status': 'unhealthy',
+            'message': str(e)
+        }
+
+    # Check if any profiles exist (basic data check)
+    try:
+        profile_count = AWSProfile.query.count()
+        health_status['services']['profiles'] = {
+            'status': 'healthy',
+            'count': profile_count
+        }
+    except Exception as e:
+        health_status['services']['profiles'] = {
+            'status': 'unhealthy',
+            'message': str(e)
+        }
+
+    # Check active profile
+    try:
+        active_profile = AWSProfile.query.filter_by(is_active=True).first()
+        health_status['services']['active_profile'] = {
+            'status': 'healthy' if active_profile else 'none',
+            'name': active_profile.name if active_profile else None
+        }
+    except Exception as e:
+        health_status['services']['active_profile'] = {
+            'status': 'unhealthy',
+            'message': str(e)
+        }
+
+    status_code = 200 if health_status['status'] == 'healthy' else 503
+    return jsonify(health_status), status_code
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000) 

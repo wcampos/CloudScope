@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, flash, redirect, url_for
+from flask import Flask, render_template, request, flash, redirect, url_for, jsonify
 from flask_restx import Api, Resource, fields
 import requests
 from datetime import datetime, UTC
@@ -29,7 +29,7 @@ CACHE_TIMESTAMP_KEY = 'aws_resources_timestamp'
 CACHE_DURATION = 300  # 5 minutes in seconds
 
 # Initialize API documentation
-api = Api(app, version='1.0', title='AWS Inventory UI',
+api = Api(app, version='1.0', title='CloudScope UI',
           description='UI service for managing AWS profiles and resources',
           doc='/ui/docs',
           prefix='/api')
@@ -63,7 +63,13 @@ def index():
     """Get the home page"""
     logger.debug("Handling request for index page")
     try:
-        return render_template('index.html.j2')
+        active_profile = None
+        try:
+            profiles_list = api_request('GET', '/api/profiles')
+            active_profile = next((p for p in profiles_list if p.get('is_active')), None)
+        except requests.exceptions.RequestException:
+            pass
+        return render_template('index.html.j2', active_profile=active_profile)
     except Exception as e:
         logger.error(f"Error rendering index page: {str(e)}")
         flash(f"Error: {str(e)}", 'error')
@@ -144,44 +150,82 @@ def dashboard():
         flash(f"Error: {str(e)}", 'error')
         return render_template('error.html.j2', error=str(e))
 
+
+@app.route('/ec2')
+@app.route('/lambda')
+@app.route('/ecs')
+@app.route('/eks')
+def redirect_compute():
+    """Redirect to dashboard compute view"""
+    return redirect(url_for('dashboard', view='compute'))
+
+
+@app.route('/s3')
+@app.route('/rds')
+@app.route('/dynamodb')
+def redirect_storage():
+    """Redirect to dashboard storage view"""
+    return redirect(url_for('dashboard', view='storage'))
+
+
+@app.route('/networks')
+@app.route('/sgs')
+def redirect_network():
+    """Redirect to dashboard network view"""
+    return redirect(url_for('dashboard', view='network'))
+
+
+@app.route('/alb')
+def redirect_services():
+    """Redirect to dashboard services view"""
+    return redirect(url_for('dashboard', view='services'))
+
+
 @app.route('/profiles')
 def profiles():
     """Get the profiles management page"""
     try:
-        profiles = api_request('GET', '/api/profiles')
-        return render_template('profiles.html.j2', profiles=profiles)
+        profiles_list = api_request('GET', '/api/profiles')
+        return render_template('profiles.html.j2', profiles=profiles_list)
     except requests.exceptions.RequestException as e:
         flash(f"Error: {str(e)}", 'error')
         return render_template('error.html.j2', error=str(e))
 
+
+@app.route('/profiles/<int:profile_id>')
+def get_profile(profile_id):
+    """Get a single profile as JSON (for edit modal)."""
+    try:
+        profile = api_request('GET', f'/api/profiles/{profile_id}')
+        return jsonify(profile)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching profile {profile_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 404
+
+
 @app.route('/profiles/add', methods=['GET', 'POST'])
 def add_profile():
-    """Add a new profile"""
-    if request.method == 'POST':
-        try:
-            response = api_request('POST', '/api/profiles', json=request.form.to_dict())
-            flash('Profile added successfully!', 'success')
-            return redirect(url_for('profiles'))
-        except requests.exceptions.RequestException as e:
-            flash(f"Error: {str(e)}", 'error')
-            return render_template('add_profile.html.j2')
-    return render_template('add_profile.html.j2')
+    """Add a new profile (form is on profiles page; GET redirects there)."""
+    if request.method == 'GET':
+        return redirect(url_for('profiles'))
+    try:
+        api_request('POST', '/api/profiles', json=request.form.to_dict())
+        flash('Profile added successfully!', 'success')
+        return redirect(url_for('profiles'))
+    except requests.exceptions.RequestException as e:
+        flash(f"Error: {str(e)}", 'error')
+        return redirect(url_for('profiles'))
+
 
 @app.route('/profiles/<int:profile_id>/edit', methods=['GET', 'POST'])
 def edit_profile(profile_id):
-    """Edit a profile"""
-    if request.method == 'POST':
-        try:
-            response = api_request('PUT', f'/api/profiles/{profile_id}', 
-                                json=request.form.to_dict())
-            flash('Profile updated successfully!', 'success')
-            return redirect(url_for('profiles'))
-        except requests.exceptions.RequestException as e:
-            flash(f"Error: {str(e)}", 'error')
-    
+    """Edit a profile (modal on profiles page; GET redirects to profiles)."""
+    if request.method == 'GET':
+        return redirect(url_for('profiles'))
     try:
-        profile = api_request('GET', f'/api/profiles/{profile_id}')
-        return render_template('edit_profile.html.j2', profile=profile)
+        api_request('PUT', f'/api/profiles/{profile_id}', json=request.form.to_dict())
+        flash('Profile updated successfully!', 'success')
+        return redirect(url_for('profiles'))
     except requests.exceptions.RequestException as e:
         flash(f"Error: {str(e)}", 'error')
         return redirect(url_for('profiles'))
@@ -233,41 +277,46 @@ def parse_credentials():
 def settings():
     """Get the settings page"""
     try:
-        return render_template('settings.html.j2')
+        version = os.getenv('APP_VERSION', '1.0.0')
+        return render_template('settings.html.j2',
+                              version=version,
+                              flask_env=os.getenv('FLASK_ENV', 'production'),
+                              debug_mode=os.getenv('FLASK_DEBUG', '0') == '1',
+                              db_host='N/A (API service)',
+                              db_port='—',
+                              db_name='—')
     except Exception as e:
         flash(f"Error: {str(e)}", 'error')
         return render_template('error.html.j2', error=str(e))
+
 
 @app.route('/health')
 def health_check():
     """Check the health status of the UI service"""
     try:
-        # Check API health
         api_health = api_request('GET', '/health')
-        return {
+        return jsonify({
             'status': 'healthy',
             'api_status': api_health.get('status', 'unknown'),
             'timestamp': datetime.now(UTC).isoformat()
-        }
+        }), 200
     except requests.exceptions.RequestException as e:
-        return {
+        return jsonify({
             'status': 'unhealthy',
             'error': str(e),
             'timestamp': datetime.now(UTC).isoformat()
-        }, 500
+        }), 503
 
 @app.route('/api/resources/refresh', methods=['POST'])
 def refresh_resources():
     """Force refresh of resources cache"""
     try:
-        # Fetch fresh resources
         resources = api_request('GET', '/api/resources')
-        # Update cache
         update_cache(resources)
-        return {'status': 'success', 'message': 'Resources cache refreshed'}
+        return jsonify({'status': 'success', 'message': 'Resources cache refreshed'}), 200
     except Exception as e:
         logger.error(f"Error refreshing resources cache: {str(e)}")
-        return {'status': 'error', 'message': str(e)}, 500
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # Log all registered routes
 with app.app_context():

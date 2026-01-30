@@ -1,1 +1,1 @@
-"""Test package for AWS Inventory.""" 
+"""Test package for CloudScope.""" 

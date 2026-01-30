@@ -10,10 +10,13 @@ $(document).ready(function() {
         }
     });
 
-    // Auto-hide alerts after 5 seconds
+    // Auto-hide success/info alerts after 5 seconds; keep error/warning visible longer
     setTimeout(function() {
-        $('.alert').fadeOut('slow');
+        $('.alert-success, .alert-info').fadeOut('slow');
     }, 5000);
+    setTimeout(function() {
+        $('.alert-danger, .alert-warning').fadeOut('slow');
+    }, 10000);
 
     // Initialize tooltips
     $('[data-bs-toggle="tooltip"]').tooltip();

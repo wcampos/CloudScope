@@ -1,4 +1,4 @@
-"""Tests for the AWS Inventory Flask application."""
+"""Tests for the CloudScope Flask application."""
 
 from unittest.mock import patch
 import os
