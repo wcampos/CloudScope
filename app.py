@@ -41,7 +41,7 @@ def get_database_url():
     
     return f"postgresql+psycopg://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='ui/templates')
 
 # Configure logging
 log_dir = os.environ.get('LOG_FILE', 'logs/aws_inventory.log').rsplit('/', 1)[0]

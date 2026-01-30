@@ -6,7 +6,7 @@ import os
 import pytest
 from botocore.exceptions import ClientError
 
-from src.models import AWSProfile, db
+from models import AWSProfile, db
 
 @pytest.fixture
 def active_profile(app):
@@ -44,8 +44,8 @@ def test_version_info(client):
     assert b'Version Information' in response.data
     assert b'development' in response.data
 
-@patch('src.aws_classes.Alb.describe_target_groups')
-@patch('src.aws_classes.Alb.describe_loadbalancers')
+@patch('aws_classes.Alb.describe_target_groups')
+@patch('aws_classes.Alb.describe_loadbalancers')
 def test_alb_route(mock_lb, mock_tg, client, active_profile):
     """Test ALB route with mocked AWS responses."""
     # Mock the AWS responses
@@ -55,7 +55,7 @@ def test_alb_route(mock_lb, mock_tg, client, active_profile):
     response = client.get('/alb')
     assert response.status_code == 302  # Redirect to dashboard
 
-@patch('src.aws_classes.DynamoDB.describe_dynamodb')
+@patch('aws_classes.DynamoDB.describe_dynamodb')
 def test_dynamodb_route(mock_dynamo, client, active_profile):
     """Test DynamoDB route with mocked AWS response."""
     # Mock the AWS response
@@ -64,7 +64,7 @@ def test_dynamodb_route(mock_dynamo, client, active_profile):
     response = client.get('/dynamodb')
     assert response.status_code == 302  # Redirect to dashboard
 
-@patch('src.aws_classes.Ec2.describe_ec2')
+@patch('aws_classes.Ec2.describe_ec2')
 def test_ec2_route(mock_ec2, client, active_profile):
     """Test EC2 route with mocked AWS response."""
     # Mock the AWS response
@@ -73,7 +73,7 @@ def test_ec2_route(mock_ec2, client, active_profile):
     response = client.get('/ec2')
     assert response.status_code == 302  # Redirect to dashboard
 
-@patch('src.aws_classes.AwsLambda.describe_lambda')
+@patch('aws_classes.AwsLambda.describe_lambda')
 def test_lambda_route(mock_lambda, client, active_profile):
     """Test Lambda route with mocked AWS response."""
     # Mock the AWS response
@@ -82,8 +82,8 @@ def test_lambda_route(mock_lambda, client, active_profile):
     response = client.get('/lambda')
     assert response.status_code == 302  # Redirect to dashboard
 
-@patch('src.aws_classes.Ec2.describe_vpcs')
-@patch('src.aws_classes.Ec2.describe_subnets')
+@patch('aws_classes.Ec2.describe_vpcs')
+@patch('aws_classes.Ec2.describe_subnets')
 def test_networks_route(mock_subnets, mock_vpcs, client, active_profile):
     """Test networks route with mocked AWS responses."""
     # Mock the AWS responses
@@ -93,7 +93,7 @@ def test_networks_route(mock_subnets, mock_vpcs, client, active_profile):
     response = client.get('/networks')
     assert response.status_code == 302  # Redirect to dashboard
 
-@patch('src.aws_classes.Rds.describe_rds')
+@patch('aws_classes.Rds.describe_rds')
 def test_rds_route(mock_rds, client, active_profile):
     """Test RDS route with mocked AWS response."""
     # Mock the AWS response
@@ -102,7 +102,7 @@ def test_rds_route(mock_rds, client, active_profile):
     response = client.get('/rds')
     assert response.status_code == 302  # Redirect to dashboard
 
-@patch('src.aws_classes.S3.describe_s3')
+@patch('aws_classes.S3.describe_s3')
 def test_s3_route(mock_s3, client, active_profile):
     """Test S3 route with mocked AWS response."""
     # Mock the AWS response
@@ -111,8 +111,8 @@ def test_s3_route(mock_s3, client, active_profile):
     response = client.get('/s3')
     assert response.status_code == 302  # Redirect to dashboard
 
-@patch('src.aws_classes.Ec2.describe_security_groups')
-@patch('src.aws_classes.Ec2.describe_security_group_rules')
+@patch('aws_classes.Ec2.describe_security_groups')
+@patch('aws_classes.Ec2.describe_security_group_rules')
 def test_sgs_route(mock_rules, mock_groups, client, active_profile):
     """Test security groups route with mocked AWS responses."""
     # Mock the AWS responses
@@ -128,7 +128,7 @@ def test_404_error(client):
     assert response.status_code == 404
     assert b'Page not found' in response.data
 
-@patch('src.aws_classes.Ec2.describe_ec2')
+@patch('aws_classes.Ec2.describe_ec2')
 def test_aws_error_handling(mock_ec2, client, active_profile):
     """Test error handling for AWS API errors."""
     # Mock AWS error

@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch
 import pytest
 from botocore.exceptions import ClientError
 
-from src.aws_classes import Alb, DynamoDB, Ec2
-from src.models import AWSProfile, db
+from aws_classes import Alb, DynamoDB, Ec2
+from models import AWSProfile, db
 
 @pytest.fixture
 def aws_profile(app):

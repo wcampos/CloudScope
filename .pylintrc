@@ -1,6 +1,6 @@
 [MASTER]
-# Add the src directory to the Python path
-init-hook='import sys; sys.path.append(".")'
+# Add project root and api to the Python path (so app.py and tests resolve models, aws_classes, version)
+init-hook='import sys, os; root = os.getcwd(); sys.path.insert(0, root); sys.path.insert(1, os.path.join(root, "api"))'
 
 # Use multiple processes to speed up Pylint
 jobs=0

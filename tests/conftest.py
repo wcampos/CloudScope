@@ -6,8 +6,11 @@ import tempfile
 
 import pytest
 
-# Add the project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Add project root and api so root app can find models, aws_classes, version
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+_api_path = os.path.join(_project_root, 'api')
+sys.path.insert(0, _project_root)
+sys.path.insert(1, _api_path)
 
 from app import app as flask_app, db  # pylint: disable=wrong-import-position
 

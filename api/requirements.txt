@@ -8,7 +8,7 @@ psycopg2-binary==2.9.9
 python-dotenv==1.0.1
 boto3==1.34.69
 requests==2.32.4
-werkzeug==3.0.1
+werkzeug>=3.0.6
 aniso8601==9.0.1
 psycopg==3.1.18
 gunicorn==23.0.0 
