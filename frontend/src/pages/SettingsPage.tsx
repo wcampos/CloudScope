@@ -14,10 +14,20 @@ import {
   FaSpinner,
   FaAws,
   FaReact,
+  FaMemory,
 } from 'react-icons/fa';
 import { getAllHealthChecks, type ServiceHealth } from '@/api/health';
 
 const version = import.meta.env.VITE_APP_VERSION ?? '1.0.0';
+
+/** Health check auto-refresh interval in minutes (configurable via VITE_HEALTH_CHECK_INTERVAL_MINUTES). */
+const HEALTH_CHECK_INTERVAL_MINUTES = (() => {
+  const v = import.meta.env.VITE_HEALTH_CHECK_INTERVAL_MINUTES;
+  if (v === undefined || v === '') return 2;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 60) : 2;
+})();
+const HEALTH_CHECK_INTERVAL_MS = HEALTH_CHECK_INTERVAL_MINUTES * 60 * 1000;
 
 function getStatusIcon(status: ServiceHealth['status']) {
   switch (status) {
@@ -25,6 +35,8 @@ function getStatusIcon(status: ServiceHealth['status']) {
       return <FaCheckCircle style={{ color: 'var(--cs-success)' }} />;
     case 'unhealthy':
       return <FaTimesCircle style={{ color: 'var(--cs-danger)' }} />;
+    case 'not_configured':
+      return <FaQuestionCircle style={{ color: 'var(--cs-gray-500)' }} />;
     case 'unknown':
       return <FaQuestionCircle style={{ color: 'var(--cs-warning)' }} />;
     case 'checking':
@@ -40,6 +52,8 @@ function getStatusBg(status: ServiceHealth['status']) {
       return 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)';
     case 'unhealthy':
       return 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)';
+    case 'not_configured':
+      return 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
     case 'unknown':
       return 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)';
     case 'checking':
@@ -53,6 +67,7 @@ function getServiceIcon(name: string) {
   if (name.includes('Frontend')) return <FaReact />;
   if (name.includes('API')) return <FaServer />;
   if (name.includes('Database')) return <FaDatabase />;
+  if (name.includes('Cache')) return <FaMemory />;
   if (name.includes('AWS')) return <FaAws />;
   return <FaServer />;
 }
@@ -148,14 +163,17 @@ export default function SettingsPage() {
 
   useEffect(() => {
     runHealthChecks();
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(runHealthChecks, 30000);
+    const interval = setInterval(runHealthChecks, HEALTH_CHECK_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [runHealthChecks]);
 
   const healthyCount = healthChecks.filter((h) => h.status === 'healthy').length;
+  const notConfiguredCount = healthChecks.filter((h) => h.status === 'not_configured').length;
+  const unhealthyCount = healthChecks.filter((h) => h.status === 'unhealthy').length;
   const totalCount = healthChecks.length;
-  const overallStatus = healthyCount === totalCount ? 'healthy' : healthyCount > 0 ? 'partial' : 'unhealthy';
+  const okCount = healthyCount + notConfiguredCount;
+  const overallStatus =
+    unhealthyCount > 0 ? 'unhealthy' : okCount === totalCount ? 'healthy' : healthyCount > 0 ? 'partial' : 'unhealthy';
 
   return (
     <Container className="py-4">
@@ -177,12 +195,33 @@ export default function SettingsPage() {
             <FaHeartbeat style={{ color: 'var(--cs-danger)' }} />
             Service Health
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             {lastChecked && (
               <span style={{ fontSize: '0.75rem', color: 'var(--cs-gray-400)' }}>
                 Last checked: {lastChecked.toLocaleTimeString()}
               </span>
             )}
+            <span style={{ fontSize: '0.75rem', color: 'var(--cs-gray-500)' }}>
+              Auto-refresh every {HEALTH_CHECK_INTERVAL_MINUTES} {HEALTH_CHECK_INTERVAL_MINUTES === 1 ? 'minute' : 'minutes'}
+            </span>
+            {(() => {
+              const cacheHealth = healthChecks.find((h) => h.name === 'Cache (Redis)');
+              const cacheOk = cacheHealth?.status === 'healthy';
+              return cacheHealth ? (
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    color: cacheOk ? 'var(--cs-success)' : 'var(--cs-gray-500)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                  }}
+                  title={cacheHealth.message}
+                >
+                  Cache: {cacheOk ? '✓' : '—'} {cacheOk ? 'Redis' : cacheHealth.status === 'unhealthy' ? 'Unavailable' : ''}
+                </span>
+              ) : null;
+            })()}
             <button
               className="btn-modern btn-modern-secondary"
               onClick={runHealthChecks}
@@ -253,6 +292,7 @@ export default function SettingsPage() {
                 }}
               >
                 {healthyCount} of {totalCount} services healthy
+                {notConfiguredCount > 0 && ` · ${notConfiguredCount} not configured`}
               </div>
             </div>
             <div

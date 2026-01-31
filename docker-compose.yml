@@ -14,22 +14,23 @@ services:
       - app_uploads:/app/uploads
       - ./api:/app
     environment:
-      - FLASK_ENV=development
       - DATABASE_URL=postgresql://cloudscope:cloudscope@db:5432/cloudscope
-      - FLASK_APP=app.py
-      - FLASK_DEBUG=1
       - POSTGRES_USER=cloudscope
       - POSTGRES_PASSWORD=cloudscope
       - POSTGRES_DB=cloudscope
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Configurable via env: HEALTHCHECK_INTERVAL, HEALTHCHECK_TIMEOUT, HEALTHCHECK_RETRIES, HEALTHCHECK_START_PERIOD (seconds)
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      interval: ${HEALTHCHECK_INTERVAL:-60}s
+      timeout: ${HEALTHCHECK_TIMEOUT:-15}s
+      retries: ${HEALTHCHECK_RETRIES:-3}
+      start_period: ${HEALTHCHECK_START_PERIOD:-30}s
 
   frontend:
     build:
@@ -74,13 +75,10 @@ services:
       context: .
       dockerfile: api/Dockerfile
     environment:
-      - FLASK_APP=app.py
       - DATABASE_URL=postgresql://cloudscope:cloudscope@db:5432/cloudscope
-      - FLASK_ENV=development
       - POSTGRES_USER=cloudscope
       - POSTGRES_PASSWORD=cloudscope
       - POSTGRES_DB=cloudscope
-      - FLASK_DEBUG=1
     volumes:
       - ./api:/app
     depends_on:
@@ -90,7 +88,7 @@ services:
       /bin/sh -c "
         sleep 5 &&
         cd /app &&
-        python -c 'from app import app, db; from flask_migrate import upgrade; app.app_context().push(); db.create_all(); upgrade()'"
+        alembic -c migrations/alembic.ini upgrade head"
 
 volumes:
   # Application volumes

@@ -22,3 +22,12 @@ export interface ProfileFormData {
   direct_session_token?: string;
   aws_session_token?: string;
 }
+
+/** Payload for creating a profile from an existing profile + role (Set Role). */
+export interface ProfileFromRoleData {
+  source_profile_id: number;
+  name: string;
+  role_type: 'existing' | 'custom';
+  role_name?: string;
+  aws_session_token?: string;
+}

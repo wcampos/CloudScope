@@ -8,6 +8,10 @@ export interface HealthResponse {
       status: string;
       message?: string;
     };
+    cache?: {
+      status: string;
+      message?: string;
+    };
     profiles?: {
       status: string;
       count?: number;
@@ -23,7 +27,7 @@ export interface HealthResponse {
 
 export interface ServiceHealth {
   name: string;
-  status: 'healthy' | 'unhealthy' | 'unknown' | 'checking';
+  status: 'healthy' | 'unhealthy' | 'unknown' | 'not_configured' | 'checking';
   responseTime?: number;
   message?: string;
   timestamp?: string;
@@ -92,6 +96,38 @@ export async function checkDatabaseHealth(): Promise<ServiceHealth> {
   }
 }
 
+export async function checkCacheHealth(): Promise<ServiceHealth> {
+  const start = performance.now();
+  try {
+    const response = await apiClient.get<HealthResponse>('/health', { timeout: 5000 });
+    const responseTime = Math.round(performance.now() - start);
+    const cacheStatus = response.data.services?.cache;
+
+    if (cacheStatus?.status === 'healthy') {
+      return {
+        name: 'Cache (Redis)',
+        status: 'healthy',
+        responseTime,
+        message: cacheStatus.message ?? 'Redis connected',
+      };
+    }
+    return {
+      name: 'Cache (Redis)',
+      status: 'unhealthy',
+      responseTime,
+      message: cacheStatus?.message ?? 'Redis not configured or unavailable',
+    };
+  } catch (error) {
+    const responseTime = Math.round(performance.now() - start);
+    return {
+      name: 'Cache (Redis)',
+      status: 'unhealthy',
+      responseTime,
+      message: error instanceof Error ? error.message : 'Cannot check cache status',
+    };
+  }
+}
+
 export async function checkAwsConnection(): Promise<ServiceHealth> {
   const start = performance.now();
   try {
@@ -103,9 +139,9 @@ export async function checkAwsConnection(): Promise<ServiceHealth> {
       const responseTime = Math.round(performance.now() - start);
       return {
         name: 'AWS Connection',
-        status: 'unknown',
+        status: 'not_configured',
         responseTime,
-        message: 'No active AWS profile configured',
+        message: 'Not configured — add and select a profile in Profiles',
       };
     }
 
@@ -125,13 +161,13 @@ export async function checkAwsConnection(): Promise<ServiceHealth> {
     const responseTime = Math.round(performance.now() - start);
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
 
-    // Check for specific error types
-    if (errorMsg.includes('No active profile') || errorMsg.includes('400')) {
+    // No active profile or no profiles — show as not configured (grey), not unhealthy
+    if (errorMsg.includes('No active profile') || errorMsg.includes('400') || errorMsg.includes('no profile')) {
       return {
         name: 'AWS Connection',
-        status: 'unknown',
+        status: 'not_configured',
         responseTime,
-        message: 'No active AWS profile configured',
+        message: 'Not configured — add and select a profile in Profiles',
       };
     }
 
@@ -159,6 +195,7 @@ export async function getAllHealthChecks(): Promise<ServiceHealth[]> {
     checkFrontendHealth(),
     checkApiHealth(),
     checkDatabaseHealth(),
+    checkCacheHealth(),
     checkAwsConnection(),
   ]);
   return checks;

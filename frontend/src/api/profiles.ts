@@ -1,11 +1,18 @@
 import apiClient from './client';
-import type { Profile, ProfileFormData } from '@/types/profile';
+import type { Profile, ProfileFormData, ProfileFromRoleData } from '@/types/profile';
 
 const BASE = '/api/profiles';
 
 export async function getProfiles(): Promise<Profile[]> {
-  const { data } = await apiClient.get<Profile[]>(BASE);
-  return data;
+  const res = await apiClient.get<unknown>(BASE);
+  const data = res.data;
+  if (Array.isArray(data)) return data as Profile[];
+  if (data && typeof data === 'object') {
+    const obj = data as Record<string, unknown>;
+    if (Array.isArray(obj.data)) return obj.data as Profile[];
+    if (Array.isArray(obj.profiles)) return obj.profiles as Profile[];
+  }
+  return [];
 }
 
 export async function getProfile(id: number): Promise<Profile> {
@@ -37,5 +44,15 @@ export async function deactivateAllProfiles(): Promise<void> {
 
 export async function parseCredentials(credentialsText: string): Promise<Profile> {
   const { data } = await apiClient.post<Profile>(`${BASE}/parse`, { credentials_text: credentialsText });
+  return data;
+}
+
+export async function parseConfig(configText: string): Promise<Profile[]> {
+  const { data } = await apiClient.post<Profile[]>(`${BASE}/parse_config`, { config_text: configText });
+  return Array.isArray(data) ? data : [];
+}
+
+export async function createProfileFromRole(payload: ProfileFromRoleData): Promise<Profile> {
+  const { data } = await apiClient.post<Profile>(`${BASE}/from_role`, payload);
   return data;
 }

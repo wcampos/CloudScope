@@ -28,8 +28,8 @@ def aws_error_handler(func):
     return wrapper
 
 class AWSBase:
-    def __init__(self, service_name: str):
-        self.profile = AWSProfile.get_active_profile()
+    def __init__(self, service_name: str, profile: AWSProfile):
+        self.profile = profile
         if not self.profile:
             raise ValueError("No active AWS profile found")
 
@@ -83,8 +83,8 @@ class AWSBase:
         return result
 
 class Alb(AWSBase):
-    def __init__(self):
-        super().__init__("elbv2")
+    def __init__(self, profile: AWSProfile):
+        super().__init__("elbv2", profile)
 
     @aws_error_handler
     def describe_target_groups(self) -> List[Dict[str, Any]]:
@@ -128,8 +128,8 @@ class Alb(AWSBase):
         return sorted(ilist, key=lambda i: i['Name'])
 
 class AwsLambda(AWSBase):
-    def __init__(self):
-        super().__init__("lambda")
+    def __init__(self, profile: AWSProfile):
+        super().__init__("lambda", profile)
 
     @aws_error_handler
     def describe_lambda(self) -> List[Dict[str, Any]]:
@@ -151,8 +151,8 @@ class AwsLambda(AWSBase):
         return sorted(ilist, key=lambda i: i['Name'])
 
 class DynamoDB(AWSBase):
-    def __init__(self):
-        super().__init__("dynamodb")
+    def __init__(self, profile: AWSProfile):
+        super().__init__("dynamodb", profile)
 
     @aws_error_handler
     def describe_dynamodb(self) -> List[Dict[str, Any]]:
@@ -160,8 +160,8 @@ class DynamoDB(AWSBase):
         return [{'Name': table_name} for table_name in dyn_data['TableNames']]
 
 class Ec2(AWSBase):
-    def __init__(self):
-        super().__init__("ec2")
+    def __init__(self, profile: AWSProfile):
+        super().__init__("ec2", profile)
 
     @aws_error_handler
     def describe_ec2(self) -> List[Dict[str, Any]]:
@@ -335,8 +335,8 @@ class Ec2(AWSBase):
         return sorted(ilist, key=lambda i: i['Name'])
 
 class ECS(AWSBase):
-    def __init__(self):
-        super().__init__("ecs")
+    def __init__(self, profile: AWSProfile):
+        super().__init__("ecs", profile)
 
     @aws_error_handler
     def describe_clusters(self) -> List[Dict[str, Any]]:
@@ -378,8 +378,8 @@ class ECS(AWSBase):
         return sorted(ilist, key=lambda i: i['Name'])
 
 class EKS(AWSBase):
-    def __init__(self):
-        super().__init__("eks")
+    def __init__(self, profile: AWSProfile):
+        super().__init__("eks", profile)
 
     @aws_error_handler
     def describe_clusters(self) -> List[Dict[str, Any]]:
@@ -403,33 +403,177 @@ class EKS(AWSBase):
         return sorted(ilist, key=lambda i: i['Name'])
 
 class RDS(AWSBase):
-    def __init__(self):
-        super().__init__("rds")
+    def __init__(self, profile: AWSProfile):
+        super().__init__("rds", profile)
 
     @aws_error_handler
     def describe_rds(self) -> List[Dict[str, Any]]:
         rds_data = self.client.describe_db_instances()
         ilist = []
-        
         for instance in rds_data['DBInstances']:
+            endpoint = instance.get('Endpoint') or {}
             idict = {
                 'Name': instance['DBInstanceIdentifier'],
                 'Engine': instance['Engine'],
                 'Status': instance['DBInstanceStatus'],
                 'Class': instance['DBInstanceClass'],
-                'Storage': instance['AllocatedStorage'],
-                'Multi AZ': instance['MultiAZ'],
-                'Public Access': instance['PubliclyAccessible'],
-                'Endpoint': instance['Endpoint']['Address'],
-                'Port': instance['Endpoint']['Port']
+                'Storage': instance.get('AllocatedStorage', ''),
+                'Multi AZ': instance.get('MultiAZ', False),
+                'Public Access': instance.get('PubliclyAccessible', False),
+                'Endpoint': endpoint.get('Address', '—'),
+                'Port': endpoint.get('Port', '—'),
             }
             ilist.append(idict)
-            
         return sorted(ilist, key=lambda i: i['Name'])
 
+    @aws_error_handler
+    def describe_rds_clusters(self) -> List[Dict[str, Any]]:
+        """Aurora and other RDS clusters."""
+        try:
+            data = self.client.describe_db_clusters()
+        except Exception as e:
+            self.logger.warning("describe_db_clusters: %s", e)
+            return []
+        ilist = []
+        for c in data.get('DBClusters', []):
+            ilist.append({
+                'Name': c.get('DBClusterIdentifier', ''),
+                'Engine': c.get('Engine', ''),
+                'Status': c.get('Status', ''),
+                'Endpoint': c.get('Endpoint', '—'),
+                'Port': c.get('Port', '—'),
+            })
+        return sorted(ilist, key=lambda i: i['Name'])
+
+class ElastiCache(AWSBase):
+    def __init__(self, profile: AWSProfile):
+        super().__init__("elasticache", profile)
+
+    @aws_error_handler
+    def describe_elasticache(self) -> List[Dict[str, Any]]:
+        data = self.client.describe_cache_clusters()
+        ilist = []
+        for c in data.get('CacheClusters', []):
+            ilist.append({
+                'Name': c.get('CacheClusterId', ''),
+                'Engine': c.get('Engine', ''),
+                'Status': c.get('CacheClusterStatus', ''),
+                'Node Type': c.get('CacheNodeType', ''),
+                'Nodes': c.get('NumCacheNodes', 0),
+            })
+        return sorted(ilist, key=lambda i: i['Name'])
+
+
+class DocumentDB(AWSBase):
+    def __init__(self, profile: AWSProfile):
+        super().__init__("docdb", profile)
+
+    @aws_error_handler
+    def describe_documentdb(self) -> List[Dict[str, Any]]:
+        data = self.client.describe_db_clusters()
+        ilist = []
+        for c in data.get('DBClusters', []):
+            ilist.append({
+                'Name': c.get('DBClusterIdentifier', ''),
+                'Engine': c.get('Engine', ''),
+                'Status': c.get('Status', ''),
+                'Endpoint': c.get('Endpoint', '—'),
+                'Port': c.get('Port', '—'),
+            })
+        return sorted(ilist, key=lambda i: i['Name'])
+
+
+class SQS(AWSBase):
+    def __init__(self, profile: AWSProfile):
+        super().__init__("sqs", profile)
+
+    @aws_error_handler
+    def describe_queues(self) -> List[Dict[str, Any]]:
+        ilist = []
+        paginator = self.client.get_paginator("list_queues")
+        for page in paginator.paginate():
+            for url in page.get("QueueUrls", []):
+                name = url.split("/")[-1] if "/" in url else url
+                ilist.append({"Name": name, "Queue URL": url})
+        return sorted(ilist, key=lambda i: i["Name"])
+
+
+class SNS(AWSBase):
+    def __init__(self, profile: AWSProfile):
+        super().__init__("sns", profile)
+
+    @aws_error_handler
+    def describe_topics(self) -> List[Dict[str, Any]]:
+        ilist = []
+        paginator = self.client.get_paginator("list_topics")
+        for page in paginator.paginate():
+            for topic in page.get("Topics", []):
+                arn = topic.get("TopicArn", "")
+                name = arn.split(":")[-1] if arn else ""
+                ilist.append({"Name": name, "Topic ARN": arn})
+        return sorted(ilist, key=lambda i: i["Name"])
+
+
+class CloudFront(AWSBase):
+    def __init__(self, profile: AWSProfile):
+        super().__init__("cloudfront", profile)
+
+    @aws_error_handler
+    def describe_distributions(self) -> List[Dict[str, Any]]:
+        ilist = []
+        data = self.client.list_distributions()
+        for d in data.get("DistributionList", {}).get("Items", []):
+            ilist.append({
+                "Name": d.get("Id", ""),
+                "Domain": d.get("DomainName", ""),
+                "Status": d.get("Status", ""),
+                "Enabled": d.get("Enabled", False),
+                "Origin": d.get("Origins", {}).get("Items", [{}])[0].get("DomainName", "—") if d.get("Origins", {}).get("Items") else "—",
+            })
+        return sorted(ilist, key=lambda i: i["Name"])
+
+
+class ApiGateway(AWSBase):
+    def __init__(self, profile: AWSProfile):
+        super().__init__("apigateway", profile)
+
+    @aws_error_handler
+    def describe_rest_apis(self) -> List[Dict[str, Any]]:
+        ilist = []
+        paginator = self.client.get_paginator("get_rest_apis")
+        for page in paginator.paginate():
+            for api in page.get("items", []):
+                ilist.append({
+                    "Name": api.get("name", ""),
+                    "Id": api.get("id", ""),
+                    "Description": api.get("description", "—") or "—",
+                    "Created": api.get("createdDate", "—"),
+                })
+        return sorted(ilist, key=lambda i: i["Name"])
+
+
+class ApiGatewayV2(AWSBase):
+    def __init__(self, profile: AWSProfile):
+        super().__init__("apigatewayv2", profile)
+
+    @aws_error_handler
+    def describe_http_apis(self) -> List[Dict[str, Any]]:
+        ilist = []
+        paginator = self.client.get_paginator("get_apis")
+        for page in paginator.paginate():
+            for api in page.get("Items", []):
+                ilist.append({
+                    "Name": api.get("Name", ""),
+                    "Api Id": api.get("ApiId", ""),
+                    "Protocol": api.get("ProtocolType", "—"),
+                    "Endpoint": api.get("ApiEndpoint", "—"),
+                })
+        return sorted(ilist, key=lambda i: i["Name"])
+
+
 class S3(AWSBase):
-    def __init__(self):
-        super().__init__("s3")
+    def __init__(self, profile: AWSProfile):
+        super().__init__("s3", profile)
 
     @aws_error_handler
     def describe_s3(self) -> List[Dict[str, Any]]:
@@ -454,16 +598,23 @@ class S3(AWSBase):
 
 class CommonAWSServices:
     """Class to aggregate resources from multiple AWS services."""
-    
-    def __init__(self):
-        self.ec2 = Ec2()
-        self.rds = RDS()
-        self.s3 = S3()
-        self.lambda_ = AwsLambda()
-        self.dynamodb = DynamoDB()
-        self.alb = Alb()
-        self.ecs = ECS()
-        self.eks = EKS()
+
+    def __init__(self, profile: AWSProfile):
+        self.ec2 = Ec2(profile)
+        self.rds = RDS(profile)
+        self.s3 = S3(profile)
+        self.lambda_ = AwsLambda(profile)
+        self.dynamodb = DynamoDB(profile)
+        self.elasticache = ElastiCache(profile)
+        self.documentdb = DocumentDB(profile)
+        self.alb = Alb(profile)
+        self.ecs = ECS(profile)
+        self.eks = EKS(profile)
+        self.sqs = SQS(profile)
+        self.sns = SNS(profile)
+        self.cloudfront = CloudFront(profile)
+        self.apigateway = ApiGateway(profile)
+        self.apigatewayv2 = ApiGatewayV2(profile)
         self.logger = logging.getLogger("aws_inventory.CommonAWSServices")
 
     def _safe_get_resources(self, service_name: str, method_name: str) -> List[Dict[str, Any]]:
@@ -489,12 +640,32 @@ class CommonAWSServices:
             'Lambda Functions': self._safe_get_resources('lambda_', 'describe_lambda')
         }
 
-    def get_storage_resources(self) -> Dict[str, List[Dict[str, Any]]]:
-        """Get all storage-related resources."""
+    def get_data_resources(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get data stores: RDS, DynamoDB, DocumentDB."""
         return {
             'RDS Instances': self._safe_get_resources('rds', 'describe_rds'),
+            'RDS Clusters (Aurora)': self._safe_get_resources('rds', 'describe_rds_clusters'),
+            'DynamoDB Tables': self._safe_get_resources('dynamodb', 'describe_dynamodb'),
+            'DocumentDB Clusters': self._safe_get_resources('documentdb', 'describe_documentdb'),
+        }
+
+    def get_cache_resources(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get cache systems: ElastiCache."""
+        return {
+            'ElastiCache Clusters': self._safe_get_resources('elasticache', 'describe_elasticache'),
+        }
+
+    def get_storage_resources(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get object/block storage: S3."""
+        return {
             'S3 Buckets': self._safe_get_resources('s3', 'describe_s3'),
-            'DynamoDB Tables': self._safe_get_resources('dynamodb', 'describe_dynamodb')
+        }
+
+    def get_messaging_resources(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get messaging and queues: SQS, SNS."""
+        return {
+            'SQS Queues': self._safe_get_resources('sqs', 'describe_queues'),
+            'SNS Topics': self._safe_get_resources('sns', 'describe_topics'),
         }
 
     def get_network_resources(self) -> Dict[str, List[Dict[str, Any]]]:
@@ -504,6 +675,19 @@ class CommonAWSServices:
             'Subnets': self._safe_get_resources('ec2', 'describe_subnets'),
             'Security Groups': self._safe_get_resources('ec2', 'describe_security_groups'),
             'Security Group Rules': self._safe_get_resources('ec2', 'describe_security_group_rules')
+        }
+
+    def get_cdn_resources(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get CDN: CloudFront."""
+        return {
+            'CloudFront Distributions': self._safe_get_resources('cloudfront', 'describe_distributions'),
+        }
+
+    def get_api_resources(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get API / serverless: API Gateway REST and HTTP APIs."""
+        return {
+            'API Gateway REST APIs': self._safe_get_resources('apigateway', 'describe_rest_apis'),
+            'API Gateway HTTP APIs': self._safe_get_resources('apigatewayv2', 'describe_http_apis'),
         }
 
     def get_service_resources(self) -> Dict[str, List[Dict[str, Any]]]:
@@ -518,8 +702,13 @@ class CommonAWSServices:
         try:
             return {
                 **self.get_compute_resources(),
+                **self.get_data_resources(),
+                **self.get_cache_resources(),
                 **self.get_storage_resources(),
                 **self.get_network_resources(),
+                **self.get_messaging_resources(),
+                **self.get_cdn_resources(),
+                **self.get_api_resources(),
                 **self.get_service_resources()
             }
         except Exception as e:
