@@ -39,6 +39,9 @@ ENV/
 env/
 .venv/
 
+# IDE / Cursor (rules stay local, do not push)
+.cursor/
+
 # IDE
 .idea/
 .vscode/

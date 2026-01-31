@@ -1,37 +1,77 @@
 import { Link } from 'react-router-dom';
 import { useProfiles } from '@/hooks/useProfiles';
 import { Col, Row, Container } from 'react-bootstrap';
-import { FaServer, FaDatabase, FaNetworkWired, FaCogs, FaArrowRight, FaExclamationTriangle } from 'react-icons/fa';
+import { FaServer, FaDatabase, FaMemory, FaArchive, FaNetworkWired, FaEnvelope, FaGlobe, FaPlug, FaCogs, FaArrowRight, FaExclamationTriangle } from 'react-icons/fa';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 const features = [
   {
     title: 'Compute',
-    description: 'Monitor EC2 instances, Lambda functions, ECS clusters, and EKS resources across your AWS accounts.',
+    description: 'Monitor EC2 instances, Lambda functions, ECS clusters, and EKS clusters.',
     icon: FaServer,
     iconClass: 'compute',
     link: '/dashboard?view=compute',
     linkText: 'View Compute',
   },
   {
-    title: 'Storage',
-    description: 'Track S3 buckets, RDS databases, DynamoDB tables, and EBS volumes in one place.',
+    title: 'Data',
+    description: 'RDS instances, Aurora clusters, DynamoDB tables, and DocumentDB clusters.',
     icon: FaDatabase,
+    iconClass: 'data',
+    link: '/dashboard?view=data',
+    linkText: 'View Data',
+  },
+  {
+    title: 'Cache',
+    description: 'ElastiCache clusters and in-memory cache systems.',
+    icon: FaMemory,
+    iconClass: 'cache',
+    link: '/dashboard?view=cache',
+    linkText: 'View Cache',
+  },
+  {
+    title: 'Storage',
+    description: 'S3 buckets and object storage.',
+    icon: FaArchive,
     iconClass: 'storage',
     link: '/dashboard?view=storage',
     linkText: 'View Storage',
   },
   {
     title: 'Networking',
-    description: 'Visualize VPCs, subnets, security groups, and network configurations.',
+    description: 'VPCs, subnets, security groups, and network configurations.',
     icon: FaNetworkWired,
     iconClass: 'network',
     link: '/dashboard?view=network',
     linkText: 'View Network',
   },
   {
+    title: 'Messaging',
+    description: 'SQS queues and SNS topics.',
+    icon: FaEnvelope,
+    iconClass: 'messaging',
+    link: '/dashboard?view=messaging',
+    linkText: 'View Messaging',
+  },
+  {
+    title: 'CDN',
+    description: 'CloudFront distributions and edge caching.',
+    icon: FaGlobe,
+    iconClass: 'cdn',
+    link: '/dashboard?view=cdn',
+    linkText: 'View CDN',
+  },
+  {
+    title: 'API / Serverless',
+    description: 'API Gateway REST and HTTP APIs.',
+    icon: FaPlug,
+    iconClass: 'api',
+    link: '/dashboard?view=api',
+    linkText: 'View API',
+  },
+  {
     title: 'Services',
-    description: 'Manage ALBs, CloudWatch metrics, IAM resources, and other AWS services.',
+    description: 'Load balancers, target groups, and other AWS services.',
     icon: FaCogs,
     iconClass: 'services',
     link: '/dashboard?view=services',

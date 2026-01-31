@@ -1,27 +1,39 @@
-.PHONY: build up down logs ps clean test migrate help
+.PHONY: build up run down stop logs ps clean test migrate help api frontend migrations db redis
 
 # Default target
 help:
 	@echo "Available commands:"
-	@echo "  make build    - Build all Docker images"
-	@echo "  make up       - Start all containers"
+	@echo "  make build [api|frontend|migrations] - Build all or one image"
+	@echo "  make up [api|frontend|db|...]         - Start all or one service (alias: make run)"
+	@echo "  make run [api|frontend|db|...]        - Same as make up"
+	@echo "  make stop [api|frontend|db|...]      - Stop all or one service"
 	@echo "  make down     - Stop and remove all containers"
 	@echo "  make logs     - View logs from all containers"
 	@echo "  make ps       - List running containers"
 	@echo "  make clean    - Remove all containers, volumes, and images"
 	@echo "  make test     - Run tests"
 	@echo "  make migrate  - Run database migrations"
+	@echo "  make health-check - Curl API /health (port 5001)"
+	@echo "  make check-api    - Full connection check (direct + proxy); use after 'make up'"
 	@echo "  make help     - Show this help message"
 
-# Build Docker images
+# Dummy targets so "make build api", "make up api", "make stop api" don't fail
+api frontend migrations db redis:
+	@true
+
+# Build: make build [api|frontend|migrations]
 build:
-	docker-compose build
+	docker-compose build $(filter-out build,$(MAKECMDGOALS))
 
-# Start containers
-up:
-	docker-compose up -d
+# Start: make up [service] or make run [service]
+up run:
+	docker-compose up -d $(filter-out up run,$(MAKECMDGOALS))
 
-# Stop and remove containers
+# Stop: make stop [service]
+stop:
+	docker-compose stop $(filter-out stop,$(MAKECMDGOALS))
+
+# Stop and remove all containers
 down:
 	docker-compose down
 
@@ -81,8 +93,11 @@ restart-api:
 restart-frontend:
 	docker-compose up -d --build frontend
 
-# View service health
+# View service health (API must be reachable at localhost:5001, e.g. via 'docker compose up -d')
 health-check:
-	@echo "Checking API health..."
-	@curl -s http://localhost:5001/health
-	@echo "\nFrontend: http://localhost:3000" 
+	@curl -sf http://localhost:5001/health && echo "" || (echo "FAILED: API not reachable. Run: docker compose up -d" && exit 1)
+	@echo "Frontend (Docker): http://localhost:3000  |  Dev: npm run dev then http://localhost:5173"
+
+# Full API connection check (direct + via frontend proxy)
+check-api:
+	@./scripts/check-api.sh 

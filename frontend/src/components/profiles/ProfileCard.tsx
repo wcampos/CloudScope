@@ -5,6 +5,7 @@ interface ProfileCardProps {
   profile: Profile;
   isActive: boolean;
   onSelect: () => void;
+  onSetActive: () => void;
   onEdit: () => void;
   onDelete: () => void;
   deleteConfirm?: boolean;
@@ -14,6 +15,7 @@ export default function ProfileCard({
   profile,
   isActive,
   onSelect,
+  onSetActive,
   onEdit,
   onDelete,
   deleteConfirm,
@@ -58,6 +60,23 @@ export default function ProfileCard({
         </div>
       </div>
       <div className="profile-actions">
+        <button
+          type="button"
+          className={`btn-modern ${isActive ? 'btn-modern-primary' : 'btn-modern-outline'}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSetActive();
+          }}
+          style={{
+            padding: '0.4rem 0.75rem',
+            fontSize: '0.8rem',
+            ...(isActive ? { cursor: 'default' as const } : {}),
+          }}
+          title={isActive ? 'Currently in use' : 'Use this profile'}
+        >
+          <FaCheckCircle />
+          {isActive ? 'In use' : 'Use'}
+        </button>
         <button
           type="button"
           className="btn-modern btn-modern-outline"

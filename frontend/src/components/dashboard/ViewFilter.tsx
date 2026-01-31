@@ -1,11 +1,16 @@
 import { Link, useSearchParams } from 'react-router-dom';
-import { FaLayerGroup, FaServer, FaDatabase, FaNetworkWired, FaCogs } from 'react-icons/fa';
+import { FaLayerGroup, FaServer, FaDatabase, FaMemory, FaArchive, FaNetworkWired, FaEnvelope, FaGlobe, FaPlug, FaCogs } from 'react-icons/fa';
 
 const VIEWS = [
   { key: 'all', label: 'All Resources', icon: FaLayerGroup },
   { key: 'compute', label: 'Compute', icon: FaServer },
-  { key: 'storage', label: 'Storage', icon: FaDatabase },
+  { key: 'data', label: 'Data', icon: FaDatabase },
+  { key: 'cache', label: 'Cache', icon: FaMemory },
+  { key: 'storage', label: 'Storage', icon: FaArchive },
   { key: 'network', label: 'Network', icon: FaNetworkWired },
+  { key: 'messaging', label: 'Messaging', icon: FaEnvelope },
+  { key: 'cdn', label: 'CDN', icon: FaGlobe },
+  { key: 'api', label: 'API / Serverless', icon: FaPlug },
   { key: 'services', label: 'Services', icon: FaCogs },
 ] as const;
 

@@ -260,14 +260,39 @@ main {
   color: #d97706;
 }
 
-.feature-card .feature-icon.storage {
+.feature-card .feature-icon.data {
   background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
   color: #2563eb;
+}
+
+.feature-card .feature-icon.cache {
+  background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%);
+  color: #b45309;
+}
+
+.feature-card .feature-icon.storage {
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  color: #1d4ed8;
 }
 
 .feature-card .feature-icon.network {
   background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
   color: #059669;
+}
+
+.feature-card .feature-icon.messaging {
+  background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%);
+  color: #0d9488;
+}
+
+.feature-card .feature-icon.cdn {
+  background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+  color: #ea580c;
+}
+
+.feature-card .feature-icon.api {
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  color: #4f46e5;
 }
 
 .feature-card .feature-icon.services {

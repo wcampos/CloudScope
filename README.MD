@@ -66,15 +66,19 @@ The application is split into three main components:
 
 ## Screenshots
 
-**Dashboard** — AWS resources by category (Compute, Storage, Network, Services). Empty state when no resources are loaded.
+**Main** — Welcome page with connection status and Explore Resources (Compute, Data, Cache, Storage, Networking, Messaging, Services).
 
-![CloudScope Dashboard (empty)](docs/images/dashboard-empty.png)
+![CloudScope Main](docs/images/main.png)
 
-**Profiles** — Add and manage AWS profiles (access keys, role configuration, paste credentials).
+**Dashboard** — AWS resources by category with stats and collapsible resource tables (e.g. EC2 Volumes).
+
+![CloudScope Dashboard](docs/images/dashboard.png)
+
+**Profiles** — Add and manage AWS profiles (Add new profile, Import by paste, Set Role); view and select active profile.
 
 ![CloudScope Profiles](docs/images/profiles.png)
 
-**Settings** — Service health, version, environment, and technology stack.
+**Settings** — Service health (API, Database, AWS Connection), version, environment, storage, and technology stack.
 
 ![CloudScope Settings](docs/images/settings.png)
 

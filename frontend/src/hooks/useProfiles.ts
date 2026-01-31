@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as profilesApi from '@/api/profiles';
-import type { ProfileFormData } from '@/types/profile';
+import type { ProfileFormData, ProfileFromRoleData } from '@/types/profile';
 
 const QUERY_KEY = ['profiles'];
 
@@ -8,7 +8,11 @@ export function useProfiles() {
   return useQuery({
     queryKey: QUERY_KEY,
     queryFn: profilesApi.getProfiles,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
+    retry: 2,
   });
 }
 
@@ -25,7 +29,10 @@ export function useCreateProfile() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: ProfileFormData) => profilesApi.createProfile(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      await queryClient.refetchQueries({ queryKey: QUERY_KEY });
+    },
   });
 }
 
@@ -53,7 +60,10 @@ export function useSetActiveProfile() {
       await profilesApi.deactivateAllProfiles();
       await profilesApi.activateProfile(profileId);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      await queryClient.refetchQueries({ queryKey: QUERY_KEY });
+    },
   });
 }
 
@@ -61,6 +71,31 @@ export function useParseCredentials() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (credentialsText: string) => profilesApi.parseCredentials(credentialsText),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      await queryClient.refetchQueries({ queryKey: QUERY_KEY });
+    },
+  });
+}
+
+export function useParseConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (configText: string) => profilesApi.parseConfig(configText),
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      await queryClient.refetchQueries({ queryKey: QUERY_KEY });
+    },
+  });
+}
+
+export function useCreateProfileFromRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ProfileFromRoleData) => profilesApi.createProfileFromRole(data),
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      await queryClient.refetchQueries({ queryKey: QUERY_KEY });
+    },
   });
 }
