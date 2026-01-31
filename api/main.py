@@ -1,21 +1,30 @@
 """FastAPI application entrypoint."""
-import logging
-from datetime import datetime, UTC
-from typing import Any
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from sqlalchemy import text
+import logging
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+from typing import Any
 
 from cache import get_redis
 from database import SessionLocal, engine
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from models import AWSProfile, Base
 from routers import profiles, resources
+from sqlalchemy import text
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup: create tables (migrations preferred). Shutdown: nothing to do."""
+    Base.metadata.create_all(bind=engine)
+    yield
+
 
 app = FastAPI(
     title="CloudScope API",
@@ -23,6 +32,7 @@ app = FastAPI(
     version="1.0",
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -49,12 +59,6 @@ app.add_middleware(NoCacheMiddleware)
 
 app.include_router(profiles.router, prefix="/api")
 app.include_router(resources.router, prefix="/api")
-
-
-@app.on_event("startup")
-def startup() -> None:
-    """Create tables on startup (optional; migrations are preferred)."""
-    Base.metadata.create_all(bind=engine)
 
 
 @app.get("/health")
@@ -88,9 +92,7 @@ def health_check() -> dict[str, Any]:
                 "status": "healthy",
                 "count": profile_count,
             }
-            active_profile = (
-                db.query(AWSProfile).filter(AWSProfile.is_active.is_(True)).first()
-            )
+            active_profile = db.query(AWSProfile).filter(AWSProfile.is_active.is_(True)).first()
             health_status["services"]["active_profile"] = {
                 "name": active_profile.name if active_profile else None,
                 "status": "healthy" if active_profile else "none",

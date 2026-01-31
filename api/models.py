@@ -1,16 +1,18 @@
 """Database models for the CloudScope application."""
-from datetime import datetime, UTC
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
-import boto3
-import logging
 
+import logging
+from datetime import UTC, datetime
+
+import boto3
 from database import Base
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 
 logger = logging.getLogger(__name__)
 
 
 class SchemaVersion(Base):
     """Model for tracking database schema version."""
+
     __tablename__ = "schema_version"
 
     id = Column(Integer, primary_key=True)

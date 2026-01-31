@@ -39,8 +39,9 @@ ENV/
 env/
 .venv/
 
-# IDE / Cursor (rules stay local, do not push)
+# IDE / Cursor (never commit; run: git rm -r --cached .cursor to untrack if previously committed)
 .cursor/
+.cursorrules
 
 # IDE
 .idea/
@@ -61,11 +62,8 @@ htmlcov/
 *.db
 *.sqlite3
 
-# Node (for commitlint)
+# Node (root - frontend has its own in frontend/)
 node_modules/
-package.json
-package-lock.json
-commitlint.config.js
 
 # Docker
 .docker/

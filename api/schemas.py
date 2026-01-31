@@ -1,14 +1,16 @@
 """Pydantic schemas for API request/response."""
+
 from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 # --- Profile ---
+
 
 class ProfileBase(BaseModel):
     """Base profile fields (input)."""
+
     name: str
     custom_name: str | None = None
     aws_access_key_id: str
@@ -22,17 +24,20 @@ class ProfileBase(BaseModel):
 
 class ProfileCreate(ProfileBase):
     """Schema for creating a profile."""
+
     pass
 
 
 class ProfileUpdate(BaseModel):
     """Schema for updating a profile (only safe fields)."""
+
     custom_name: str | None = None
     aws_region: str | None = None
 
 
 class ProfileResponse(BaseModel):
     """Profile response (no secrets)."""
+
     id: int
     name: str
     custom_name: str | None
@@ -47,16 +52,19 @@ class ProfileResponse(BaseModel):
 
 class CredentialsParse(BaseModel):
     """Body for paste-credentials import."""
+
     credentials_text: str = Field(..., min_length=1)
 
 
 class ConfigParse(BaseModel):
     """Body for paste config (~/.aws/config) import."""
+
     config_text: str = Field(..., min_length=1)
 
 
 class ProfileFromRole(BaseModel):
     """Body for creating a profile that assumes a role using an existing profile's credentials."""
+
     source_profile_id: int
     name: str
     role_type: Literal["existing", "custom"]
@@ -66,4 +74,5 @@ class ProfileFromRole(BaseModel):
 
 class MessageResponse(BaseModel):
     """Generic message response."""
+
     message: str

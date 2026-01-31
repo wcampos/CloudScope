@@ -1,81 +1,93 @@
-import { Link } from 'react-router-dom';
-import { useProfiles } from '@/hooks/useProfiles';
-import { Col, Row, Container } from 'react-bootstrap';
-import { FaServer, FaDatabase, FaMemory, FaArchive, FaNetworkWired, FaEnvelope, FaGlobe, FaPlug, FaCogs, FaArrowRight, FaExclamationTriangle } from 'react-icons/fa';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { Link } from "react-router-dom";
+import { useProfiles } from "@/hooks/useProfiles";
+import { Col, Row, Container } from "react-bootstrap";
+import {
+  FaServer,
+  FaDatabase,
+  FaMemory,
+  FaArchive,
+  FaNetworkWired,
+  FaEnvelope,
+  FaGlobe,
+  FaPlug,
+  FaCogs,
+  FaArrowRight,
+  FaExclamationTriangle,
+} from "react-icons/fa";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 
 const features = [
   {
-    title: 'Compute',
-    description: 'Monitor EC2 instances, Lambda functions, ECS clusters, and EKS clusters.',
+    title: "Compute",
+    description: "Monitor EC2 instances, Lambda functions, ECS clusters, and EKS clusters.",
     icon: FaServer,
-    iconClass: 'compute',
-    link: '/dashboard?view=compute',
-    linkText: 'View Compute',
+    iconClass: "compute",
+    link: "/dashboard?view=compute",
+    linkText: "View Compute",
   },
   {
-    title: 'Data',
-    description: 'RDS instances, Aurora clusters, DynamoDB tables, and DocumentDB clusters.',
+    title: "Data",
+    description: "RDS instances, Aurora clusters, DynamoDB tables, and DocumentDB clusters.",
     icon: FaDatabase,
-    iconClass: 'data',
-    link: '/dashboard?view=data',
-    linkText: 'View Data',
+    iconClass: "data",
+    link: "/dashboard?view=data",
+    linkText: "View Data",
   },
   {
-    title: 'Cache',
-    description: 'ElastiCache clusters and in-memory cache systems.',
+    title: "Cache",
+    description: "ElastiCache clusters and in-memory cache systems.",
     icon: FaMemory,
-    iconClass: 'cache',
-    link: '/dashboard?view=cache',
-    linkText: 'View Cache',
+    iconClass: "cache",
+    link: "/dashboard?view=cache",
+    linkText: "View Cache",
   },
   {
-    title: 'Storage',
-    description: 'S3 buckets and object storage.',
+    title: "Storage",
+    description: "S3 buckets and object storage.",
     icon: FaArchive,
-    iconClass: 'storage',
-    link: '/dashboard?view=storage',
-    linkText: 'View Storage',
+    iconClass: "storage",
+    link: "/dashboard?view=storage",
+    linkText: "View Storage",
   },
   {
-    title: 'Networking',
-    description: 'VPCs, subnets, security groups, and network configurations.',
+    title: "Networking",
+    description: "VPCs, subnets, security groups, and network configurations.",
     icon: FaNetworkWired,
-    iconClass: 'network',
-    link: '/dashboard?view=network',
-    linkText: 'View Network',
+    iconClass: "network",
+    link: "/dashboard?view=network",
+    linkText: "View Network",
   },
   {
-    title: 'Messaging',
-    description: 'SQS queues and SNS topics.',
+    title: "Messaging",
+    description: "SQS queues and SNS topics.",
     icon: FaEnvelope,
-    iconClass: 'messaging',
-    link: '/dashboard?view=messaging',
-    linkText: 'View Messaging',
+    iconClass: "messaging",
+    link: "/dashboard?view=messaging",
+    linkText: "View Messaging",
   },
   {
-    title: 'CDN',
-    description: 'CloudFront distributions and edge caching.',
+    title: "CDN",
+    description: "CloudFront distributions and edge caching.",
     icon: FaGlobe,
-    iconClass: 'cdn',
-    link: '/dashboard?view=cdn',
-    linkText: 'View CDN',
+    iconClass: "cdn",
+    link: "/dashboard?view=cdn",
+    linkText: "View CDN",
   },
   {
-    title: 'API / Serverless',
-    description: 'API Gateway REST and HTTP APIs.',
+    title: "API / Serverless",
+    description: "API Gateway REST and HTTP APIs.",
     icon: FaPlug,
-    iconClass: 'api',
-    link: '/dashboard?view=api',
-    linkText: 'View API',
+    iconClass: "api",
+    link: "/dashboard?view=api",
+    linkText: "View API",
   },
   {
-    title: 'Services',
-    description: 'Load balancers, target groups, and other AWS services.',
+    title: "Services",
+    description: "Load balancers, target groups, and other AWS services.",
     icon: FaCogs,
-    iconClass: 'services',
-    link: '/dashboard?view=services',
-    linkText: 'View Services',
+    iconClass: "services",
+    link: "/dashboard?view=services",
+    linkText: "View Services",
   },
 ];
 
@@ -104,11 +116,11 @@ export default function HomePage() {
             </span>
           </div>
         ) : (
-          <div className="alert-modern alert-warning" style={{ maxWidth: '500px' }}>
+          <div className="alert-modern alert-warning" style={{ maxWidth: "500px" }}>
             <FaExclamationTriangle size={20} />
             <div>
               <strong>No AWS Profile Configured</strong>
-              <p style={{ margin: '0.5rem 0 0', fontSize: '0.9rem' }}>
+              <p style={{ margin: "0.5rem 0 0", fontSize: "0.9rem" }}>
                 Set up an AWS profile to start viewing your resources.
               </p>
               <Link to="/profiles" className="btn-modern btn-modern-primary mt-3">
@@ -123,7 +135,7 @@ export default function HomePage() {
       {/* Feature Cards */}
       {activeProfile && (
         <>
-          <h2 style={{ fontWeight: 700, marginBottom: '1.5rem', color: 'var(--cs-gray-800)' }}>
+          <h2 style={{ fontWeight: 700, marginBottom: "1.5rem", color: "var(--cs-gray-800)" }}>
             Explore Resources
           </h2>
           <Row className="g-4">

@@ -13,6 +13,7 @@ services:
       - app_static:/app/static
       - app_uploads:/app/uploads
       - ./api:/app
+      - ./tests:/app/tests
     environment:
       - DATABASE_URL=postgresql://cloudscope:cloudscope@db:5432/cloudscope
       - POSTGRES_USER=cloudscope

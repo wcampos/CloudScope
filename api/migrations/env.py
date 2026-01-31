@@ -1,9 +1,8 @@
 """Alembic environment for FastAPI + SQLAlchemy (no Flask)."""
-from __future__ import with_statement
 
+import logging
 import os
 import sys
-import logging
 from logging.config import fileConfig
 
 from alembic import context

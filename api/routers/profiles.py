@@ -1,13 +1,12 @@
 """Profile API routes."""
+
 import configparser
 import json
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-
 from database import get_db
+from fastapi import APIRouter, Depends, HTTPException
 from helpers.profile_helpers import resolve_session_token
 from models import AWSProfile
 from schemas import (
@@ -19,6 +18,7 @@ from schemas import (
     ProfileResponse,
     ProfileUpdate,
 )
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +263,7 @@ def create_profile_from_role(body: ProfileFromRole, db: DbSession) -> ProfileRes
             raise HTTPException(status_code=400, detail="Role name is required for existing role")
         try:
             import boto3
+
             session = boto3.Session(
                 aws_access_key_id=source.aws_access_key_id,
                 aws_secret_access_key=source.aws_secret_access_key,

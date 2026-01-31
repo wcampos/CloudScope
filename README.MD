@@ -2,6 +2,13 @@
 
 A containerized web application for managing and monitoring AWS resources across multiple accounts and regions.
 
+[![Lint and format](https://github.com/wcampos/CloudScope/actions/workflows/lint-format.yml/badge.svg)](https://github.com/wcampos/CloudScope/actions/workflows/lint-format.yml)
+[![Tests](https://github.com/wcampos/CloudScope/actions/workflows/test.yml/badge.svg)](https://github.com/wcampos/CloudScope/actions/workflows/test.yml)
+[![Conventional commits](https://github.com/wcampos/CloudScope/actions/workflows/conventional-commits.yml/badge.svg)](https://github.com/wcampos/CloudScope/actions/workflows/conventional-commits.yml)
+[![Release](https://github.com/wcampos/CloudScope/actions/workflows/release.yml/badge.svg)](https://github.com/wcampos/CloudScope/actions/workflows/release.yml)
+
+All validations run on push and pull requests to `main`. The **Release** workflow runs on push to main (Release Please: creates/updates the release PR) and on release published (builds zip and uploads it); merge the release PR to publish the GitHub release.
+
 ---
 
 ## Project Status & Disclaimer
@@ -55,12 +62,17 @@ The application is split into three main components:
    cd aws_inventory  # or your clone directory
    ```
 
-2. Start the application:
+2. (Optional) Install all required deps for development (Python + frontend):
+   ```bash
+   make setup
+   ```
+
+3. Start the application:
    ```bash
    make up
    ```
 
-3. Access the application:
+4. Access the application:
    - Web UI: http://localhost:3000
    - API: http://localhost:5001
 
@@ -90,7 +102,12 @@ The application is split into three main components:
 - `make logs` - View logs from all containers
 - `make ps` - List running containers
 - `make clean` - Remove all containers, volumes, and images
-- `make test` - Run tests
+- `make test` / `make test-code` - Run tests (pytest in API container)
+- `make lint` - Lint Python (ruff) and frontend (eslint)
+- `make format` - Format Python (ruff) and frontend (prettier)
+- `make setup` - Install all required deps (Python + frontend; run once after clone)
+- `make install-dev` - Install dev deps with pip (ruff; no uv required)
+- `make uv` / `make install` - Install Python deps with uv if installed (optional)
 - `make migrate` - Run database migrations
 
 Development shortcuts:
@@ -124,6 +141,19 @@ Service management:
 - `GET /health` - Service health status
 
 ## Development
+
+### Conventional commits and releases
+- Use [Conventional Commits](https://www.conventionalcommits.org/) for messages: `feat:`, `fix:`, `docs:`, `chore:`, etc.
+- [Release Please](https://github.com/googleapis/release-please) opens a release PR from conventional commits; merging it creates the GitHub release.
+- CI runs ruff (lint + format) and commitlint on PRs.
+
+### Local Python (no uv required)
+- **Lint/format:** Run `make install-dev` (or `pip install ruff`), then `make lint-api` and `make format-api`. You do not need uv.
+- Optional: if you use [uv](https://docs.astral.sh/uv/), run `make uv` to install deps; lint/format will use ruff either way.
+
+### .cursor not in repo
+- `.cursor/` and `.cursorrules` are in `.gitignore` and are never shipped in releases.
+- If `.cursor` was ever committed, run once: `git rm -r --cached .cursor` then commit.
 
 ### Project Structure
 ```

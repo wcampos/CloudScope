@@ -1,13 +1,13 @@
 """AWS resources API routes. Resources are cached in Redis; refresh only on page load or Refresh Cache."""
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from typing import Annotated
 
 from aws_classes import CommonAWSServices
 from cache import get_cached_resources, invalidate_resources, set_cached_resources
 from database import get_db
+from fastapi import APIRouter, Depends, HTTPException
 from models import AWSProfile
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/resources", tags=["resources"])
 DbSession = Annotated[Session, Depends(get_db)]

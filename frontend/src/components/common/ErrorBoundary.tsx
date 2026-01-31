@@ -1,5 +1,5 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { Alert, Button, Container } from 'react-bootstrap';
+import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Alert, Button, Container } from "react-bootstrap";
 
 interface Props {
   children: ReactNode;
@@ -18,7 +18,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught:', error, errorInfo);
+    console.error("ErrorBoundary caught:", error, errorInfo);
   }
 
   render() {

@@ -1,13 +1,13 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NotificationProvider } from '@/context/NotificationContext';
-import Layout from '@/components/common/Layout';
-import ErrorBoundary from '@/components/common/ErrorBoundary';
-import HomePage from '@/pages/HomePage';
-import DashboardPage from '@/pages/DashboardPage';
-import ProfilesPage from '@/pages/ProfilesPage';
-import SettingsPage from '@/pages/SettingsPage';
-import NotFoundPage from '@/pages/NotFoundPage';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { NotificationProvider } from "@/context/NotificationContext";
+import Layout from "@/components/common/Layout";
+import ErrorBoundary from "@/components/common/ErrorBoundary";
+import HomePage from "@/pages/HomePage";
+import DashboardPage from "@/pages/DashboardPage";
+import ProfilesPage from "@/pages/ProfilesPage";
+import SettingsPage from "@/pages/SettingsPage";
+import NotFoundPage from "@/pages/NotFoundPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {

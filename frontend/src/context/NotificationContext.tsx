@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, type ReactNode } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import { createContext, useCallback, useContext, type ReactNode } from "react";
+import toast, { Toaster } from "react-hot-toast";
 
-type ToastType = 'success' | 'error' | 'info';
+type ToastType = "success" | "error" | "info";
 
 interface NotificationContextValue {
   notify: (message: string, type?: ToastType) => void;
@@ -10,12 +10,12 @@ interface NotificationContextValue {
 const NotificationContext = createContext<NotificationContextValue | null>(null);
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const notify = useCallback((message: string, type: ToastType = 'info') => {
+  const notify = useCallback((message: string, type: ToastType = "info") => {
     switch (type) {
-      case 'success':
+      case "success":
         toast.success(message);
         break;
-      case 'error':
+      case "error":
         toast.error(message);
         break;
       default:
@@ -33,6 +33,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
 export function useNotification() {
   const ctx = useContext(NotificationContext);
-  if (!ctx) throw new Error('useNotification must be used within NotificationProvider');
+  if (!ctx) throw new Error("useNotification must be used within NotificationProvider");
   return ctx;
 }

@@ -1,4 +1,4 @@
-import type { ResourceRow } from '@/types/resource';
+import type { ResourceRow } from "@/types/resource";
 
 interface DataTableProps {
   data: ResourceRow[];
@@ -22,7 +22,7 @@ export default function DataTable({ data }: DataTableProps) {
           {data.map((row, i) => (
             <tr key={i}>
               {headers.map((h) => (
-                <td key={h}>{String(row[h] ?? '-')}</td>
+                <td key={h}>{String(row[h] ?? "-")}</td>
               ))}
             </tr>
           ))}
