@@ -1,13 +1,14 @@
 # Gitleaks allowlist: exclude example/placeholder content (docs, .env.example, tests)
 # https://github.com/gitleaks/gitleaks#configuration
 
+# Paths use regex (not globs). Match: .env.example, docs/, any test*.py, any conftest.py
 [allowlist]
 description = "Placeholders and examples only"
 paths = [
-  ".env.example",
+  "\\.env\\.example",
   "docs/",
-  "**/test*.py",
-  "**/conftest.py"
+  "(.*/)?test[^/]*\\.py$",
+  "(.*/)?conftest\\.py$"
 ]
 regexes = [
   "AKIAXXXXXXXXXXXXXXXX",

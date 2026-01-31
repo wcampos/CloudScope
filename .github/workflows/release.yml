@@ -1,45 +1,52 @@
-name: create release
+# Release: (1) Release Please runs on push to main → creates/updates release PR (see CHANGELOG.md there).
+#          (2) When that release PR is merged to main, Release Please publishes the release → release published event.
+#          (3) release-assets job runs on release published → creates zip (excludes .cursor) and uploads as artifact.
+name: Release
 
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - main
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  create_release:
-    if: github.event.pull_request.merged == true
+  release-please:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: get version from pr title
-        id: get_version
-        run: |
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          if [[ $PR_TITLE =~ release/([0-9]+\.[0-9]+\.[0-9]+) ]]; then
-            echo "version=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
-          else
-            echo "No version found in PR title"
-            exit 1
-          fi
+      - name: Release Please
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release-type: python
+          changelog-types: '{"feat":"Features","fix":"Bug Fixes","docs":"Documentation","style":"Styles","refactor":"Code Refactoring","perf":"Performance Improvements","test":"Tests","build":"Build System","ci":"CI"}'
 
-      - name: create version file
-        run: |
-          echo "${{ steps.get_version.outputs.version }}" > src/VERSION
+  release-assets:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
 
-      - name: create release zip
+      - name: Create release zip
+        id: zip
         run: |
-          # Exclude development and git files
-          zip -r aws_inventory_${{ steps.get_version.outputs.version }}.zip . \
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          ZIP_NAME="cloudscope_${VERSION}.zip"
+          zip -r "${ZIP_NAME}" . \
             -x "*.git*" \
-            -x "*.pytest_cache*" \
             -x "*__pycache__*" \
+            -x "*.pytest_cache*" \
             -x "*.env*" \
             -x "*.coverage*" \
             -x "*htmlcov*" \
@@ -47,16 +54,24 @@ jobs:
             -x "*.vscode*" \
             -x "*.idea*" \
             -x "*venv*" \
+            -x "*.venv*" \
             -x "*logs*" \
             -x "*.db" \
-            -x "*.sqlite3"
+            -x "*.sqlite3" \
+            -x ".cursor/*" \
+            -x ".cursor*" \
+            -x ".cursorrules"
+          echo "zip_name=${ZIP_NAME}" >> $GITHUB_OUTPUT
 
-      - name: create github release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v${{ steps.get_version.outputs.version }}
-          name: Release v${{ steps.get_version.outputs.version }}
-          files: aws_inventory_${{ steps.get_version.outputs.version }}.zip
-          draft: false
-          prerelease: false
-          generate_release_notes: true 
+      - name: Upload zip to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPLOAD_URL: ${{ github.event.release.upload_url }}
+          ZIP_NAME: ${{ steps.zip.outputs.zip_name }}
+        run: |
+          UPLOAD_URL="${UPLOAD_URL%\{*}"
+          curl -sS -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/zip" \
+            --data-binary @"$ZIP_NAME" \
+            "$UPLOAD_URL?name=$ZIP_NAME"

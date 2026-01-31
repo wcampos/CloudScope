@@ -1,14 +1,24 @@
-import { useSearchParams } from 'react-router-dom';
-import { useResources, useRefreshResources } from '@/hooks/useResources';
-import ViewFilter, { type ViewType } from '@/components/dashboard/ViewFilter';
-import ResourceTable from '@/components/dashboard/ResourceTable';
-import RefreshButton from '@/components/dashboard/RefreshButton';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
-import { useNotification } from '@/context/NotificationContext';
-import { Container } from 'react-bootstrap';
-import { useEffect, useMemo } from 'react';
-import { FaServer, FaDatabase, FaMemory, FaArchive, FaNetworkWired, FaEnvelope, FaGlobe, FaPlug, FaCogs } from 'react-icons/fa';
-import type { ResourcesResponse } from '@/types/resource';
+import { useSearchParams } from "react-router-dom";
+import { useResources, useRefreshResources } from "@/hooks/useResources";
+import ViewFilter, { type ViewType } from "@/components/dashboard/ViewFilter";
+import ResourceTable from "@/components/dashboard/ResourceTable";
+import RefreshButton from "@/components/dashboard/RefreshButton";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
+import { useNotification } from "@/context/NotificationContext";
+import { Container } from "react-bootstrap";
+import { useEffect, useMemo } from "react";
+import {
+  FaServer,
+  FaDatabase,
+  FaMemory,
+  FaArchive,
+  FaNetworkWired,
+  FaEnvelope,
+  FaGlobe,
+  FaPlug,
+  FaCogs,
+} from "react-icons/fa";
+import type { ResourcesResponse } from "@/types/resource";
 
 interface StatCardProps {
   icon: React.ElementType;
@@ -44,35 +54,45 @@ function countResources(resources: ResourcesResponse | undefined, categories: st
 
 export default function DashboardPage() {
   const [searchParams] = useSearchParams();
-  const view = (searchParams.get('view') as ViewType) || 'all';
+  const view = (searchParams.get("view") as ViewType) || "all";
   const { data: resources, isLoading, isFetching, isError, error } = useResources();
   const refresh = useRefreshResources();
   const { notify } = useNotification();
 
   useEffect(() => {
     if (isError && error) {
-      notify(String(error), 'error');
+      notify(String(error), "error");
     }
   }, [isError, error, notify]);
 
   const handleRefresh = () => {
     refresh.mutate(undefined, {
-      onSuccess: () => notify('Resources refreshed', 'success'),
-      onError: (err) => notify(String(err), 'error'),
+      onSuccess: () => notify("Resources refreshed", "success"),
+      onError: (err) => notify(String(err), "error"),
     });
   };
 
-  const stats = useMemo(() => ({
-    compute: countResources(resources, ['ec2', 'lambda', 'ecs', 'eks']),
-    data: countResources(resources, ['rds', 'dynamodb', 'documentdb']),
-    cache: countResources(resources, ['elasticache']),
-    storage: countResources(resources, ['s3']),
-    network: countResources(resources, ['vpc', 'subnet', 'security_group', 'route_table', 'internet_gateway', 'nat_gateway']),
-    messaging: countResources(resources, ['sqs', 'sns']),
-    cdn: countResources(resources, ['cloudfront']),
-    api: countResources(resources, ['api gateway']),
-    services: countResources(resources, ['load balancer', 'target group']),
-  }), [resources]);
+  const stats = useMemo(
+    () => ({
+      compute: countResources(resources, ["ec2", "lambda", "ecs", "eks"]),
+      data: countResources(resources, ["rds", "dynamodb", "documentdb"]),
+      cache: countResources(resources, ["elasticache"]),
+      storage: countResources(resources, ["s3"]),
+      network: countResources(resources, [
+        "vpc",
+        "subnet",
+        "security_group",
+        "route_table",
+        "internet_gateway",
+        "nat_gateway",
+      ]),
+      messaging: countResources(resources, ["sqs", "sns"]),
+      cdn: countResources(resources, ["cloudfront"]),
+      api: countResources(resources, ["api gateway"]),
+      services: countResources(resources, ["load balancer", "target group"]),
+    }),
+    [resources]
+  );
 
   return (
     <Container className="py-4">
@@ -154,7 +174,7 @@ export default function DashboardPage() {
       )}
 
       {/* View Filter */}
-      <div style={{ marginBottom: '1.5rem' }}>
+      <div style={{ marginBottom: "1.5rem" }}>
         <ViewFilter />
       </div>
 

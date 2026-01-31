@@ -1,9 +1,9 @@
 """Profile-related helpers (session token resolution, etc.)."""
+
 import json
 import logging
 
 import boto3
-
 from schemas import ProfileCreate
 
 logger = logging.getLogger(__name__)

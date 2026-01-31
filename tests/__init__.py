@@ -1,1 +1,1 @@
-"""Test package for CloudScope.""" 
+"""Test package for CloudScope."""

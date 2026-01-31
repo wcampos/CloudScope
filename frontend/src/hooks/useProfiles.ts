@@ -1,8 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import * as profilesApi from '@/api/profiles';
-import type { ProfileFormData, ProfileFromRoleData } from '@/types/profile';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import * as profilesApi from "@/api/profiles";
+import type { ProfileFormData, ProfileFromRoleData } from "@/types/profile";
 
-const QUERY_KEY = ['profiles'];
+const QUERY_KEY = ["profiles"];
 
 export function useProfiles() {
   return useQuery({
@@ -18,7 +18,7 @@ export function useProfiles() {
 
 export function useProfile(id: number | null) {
   return useQuery({
-    queryKey: ['profile', id],
+    queryKey: ["profile", id],
     queryFn: () => profilesApi.getProfile(id!),
     enabled: id != null,
     staleTime: 5 * 60 * 1000,

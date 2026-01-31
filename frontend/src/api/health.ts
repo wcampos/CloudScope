@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient from "./client";
 
 export interface HealthResponse {
   status: string;
@@ -27,36 +27,39 @@ export interface HealthResponse {
 
 export interface ServiceHealth {
   name: string;
-  status: 'healthy' | 'unhealthy' | 'unknown' | 'not_configured' | 'checking';
+  status: "healthy" | "unhealthy" | "unknown" | "not_configured" | "checking";
   responseTime?: number;
   message?: string;
   timestamp?: string;
 }
 
 export async function healthCheck(): Promise<HealthResponse> {
-  const { data } = await apiClient.get<HealthResponse>('/health');
+  const { data } = await apiClient.get<HealthResponse>("/health");
   return data;
 }
 
 export async function checkApiHealth(): Promise<ServiceHealth> {
   const start = performance.now();
   try {
-    const response = await apiClient.get<HealthResponse>('/health', { timeout: 5000 });
+    const response = await apiClient.get<HealthResponse>("/health", { timeout: 5000 });
     const responseTime = Math.round(performance.now() - start);
     return {
-      name: 'API Service',
-      status: response.data.status === 'healthy' || response.data.status === 'degraded' ? 'healthy' : 'unhealthy',
+      name: "API Service",
+      status:
+        response.data.status === "healthy" || response.data.status === "degraded"
+          ? "healthy"
+          : "unhealthy",
       responseTime,
       timestamp: response.data.timestamp,
-      message: 'Flask API responding normally',
+      message: "Flask API responding normally",
     };
   } catch (error) {
     const responseTime = Math.round(performance.now() - start);
     return {
-      name: 'API Service',
-      status: 'unhealthy',
+      name: "API Service",
+      status: "unhealthy",
       responseTime,
-      message: error instanceof Error ? error.message : 'Failed to connect to API',
+      message: error instanceof Error ? error.message : "Failed to connect to API",
     };
   }
 }
@@ -64,34 +67,34 @@ export async function checkApiHealth(): Promise<ServiceHealth> {
 export async function checkDatabaseHealth(): Promise<ServiceHealth> {
   const start = performance.now();
   try {
-    const response = await apiClient.get<HealthResponse>('/health', { timeout: 5000 });
+    const response = await apiClient.get<HealthResponse>("/health", { timeout: 5000 });
     const responseTime = Math.round(performance.now() - start);
     const dbStatus = response.data.services?.database;
     const profilesStatus = response.data.services?.profiles;
 
-    if (dbStatus?.status === 'healthy') {
+    if (dbStatus?.status === "healthy") {
       const profileCount = profilesStatus?.count ?? 0;
       return {
-        name: 'Database (PostgreSQL)',
-        status: 'healthy',
+        name: "Database (PostgreSQL)",
+        status: "healthy",
         responseTime,
-        message: `Connected - ${profileCount} profile${profileCount !== 1 ? 's' : ''} stored`,
+        message: `Connected - ${profileCount} profile${profileCount !== 1 ? "s" : ""} stored`,
       };
     } else {
       return {
-        name: 'Database (PostgreSQL)',
-        status: 'unhealthy',
+        name: "Database (PostgreSQL)",
+        status: "unhealthy",
         responseTime,
-        message: dbStatus?.message || 'Database connection failed',
+        message: dbStatus?.message || "Database connection failed",
       };
     }
   } catch (error) {
     const responseTime = Math.round(performance.now() - start);
     return {
-      name: 'Database (PostgreSQL)',
-      status: 'unhealthy',
+      name: "Database (PostgreSQL)",
+      status: "unhealthy",
       responseTime,
-      message: error instanceof Error ? error.message : 'Cannot check database status',
+      message: error instanceof Error ? error.message : "Cannot check database status",
     };
   }
 }
@@ -99,31 +102,31 @@ export async function checkDatabaseHealth(): Promise<ServiceHealth> {
 export async function checkCacheHealth(): Promise<ServiceHealth> {
   const start = performance.now();
   try {
-    const response = await apiClient.get<HealthResponse>('/health', { timeout: 5000 });
+    const response = await apiClient.get<HealthResponse>("/health", { timeout: 5000 });
     const responseTime = Math.round(performance.now() - start);
     const cacheStatus = response.data.services?.cache;
 
-    if (cacheStatus?.status === 'healthy') {
+    if (cacheStatus?.status === "healthy") {
       return {
-        name: 'Cache (Redis)',
-        status: 'healthy',
+        name: "Cache (Redis)",
+        status: "healthy",
         responseTime,
-        message: cacheStatus.message ?? 'Redis connected',
+        message: cacheStatus.message ?? "Redis connected",
       };
     }
     return {
-      name: 'Cache (Redis)',
-      status: 'unhealthy',
+      name: "Cache (Redis)",
+      status: "unhealthy",
       responseTime,
-      message: cacheStatus?.message ?? 'Redis not configured or unavailable',
+      message: cacheStatus?.message ?? "Redis not configured or unavailable",
     };
   } catch (error) {
     const responseTime = Math.round(performance.now() - start);
     return {
-      name: 'Cache (Redis)',
-      status: 'unhealthy',
+      name: "Cache (Redis)",
+      status: "unhealthy",
       responseTime,
-      message: error instanceof Error ? error.message : 'Cannot check cache status',
+      message: error instanceof Error ? error.message : "Cannot check cache status",
     };
   }
 }
@@ -132,48 +135,55 @@ export async function checkAwsConnection(): Promise<ServiceHealth> {
   const start = performance.now();
   try {
     // First check if there's an active profile
-    const healthResponse = await apiClient.get<HealthResponse>('/health', { timeout: 5000 });
+    const healthResponse = await apiClient.get<HealthResponse>("/health", { timeout: 5000 });
     const activeProfile = healthResponse.data.services?.active_profile;
 
-    if (!activeProfile || activeProfile.status === 'none' || !activeProfile.name) {
+    if (!activeProfile || activeProfile.status === "none" || !activeProfile.name) {
       const responseTime = Math.round(performance.now() - start);
       return {
-        name: 'AWS Connection',
-        status: 'not_configured',
+        name: "AWS Connection",
+        status: "not_configured",
         responseTime,
-        message: 'Not configured — add and select a profile in Profiles',
+        message: "Not configured — add and select a profile in Profiles",
       };
     }
 
     // Try to fetch resources to verify AWS connection
-    const response = await apiClient.get('/api/resources', { timeout: 15000 });
+    const response = await apiClient.get("/api/resources", { timeout: 15000 });
     const responseTime = Math.round(performance.now() - start);
     const resourceCount = response.data
-      ? Object.values(response.data).reduce((sum: number, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0)
+      ? Object.values(response.data).reduce(
+          (sum: number, arr) => sum + (Array.isArray(arr) ? arr.length : 0),
+          0
+        )
       : 0;
     return {
-      name: 'AWS Connection',
-      status: 'healthy',
+      name: "AWS Connection",
+      status: "healthy",
       responseTime,
       message: `Connected via "${activeProfile.name}" - ${resourceCount} resources`,
     };
   } catch (error) {
     const responseTime = Math.round(performance.now() - start);
-    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
 
     // No active profile or no profiles — show as not configured (grey), not unhealthy
-    if (errorMsg.includes('No active profile') || errorMsg.includes('400') || errorMsg.includes('no profile')) {
+    if (
+      errorMsg.includes("No active profile") ||
+      errorMsg.includes("400") ||
+      errorMsg.includes("no profile")
+    ) {
       return {
-        name: 'AWS Connection',
-        status: 'not_configured',
+        name: "AWS Connection",
+        status: "not_configured",
         responseTime,
-        message: 'Not configured — add and select a profile in Profiles',
+        message: "Not configured — add and select a profile in Profiles",
       };
     }
 
     return {
-      name: 'AWS Connection',
-      status: 'unhealthy',
+      name: "AWS Connection",
+      status: "unhealthy",
       responseTime,
       message: `AWS error: ${errorMsg}`,
     };
@@ -182,10 +192,10 @@ export async function checkAwsConnection(): Promise<ServiceHealth> {
 
 export async function checkFrontendHealth(): Promise<ServiceHealth> {
   return {
-    name: 'Frontend (React)',
-    status: 'healthy',
+    name: "Frontend (React)",
+    status: "healthy",
     responseTime: 0,
-    message: 'Application loaded successfully',
+    message: "Application loaded successfully",
     timestamp: new Date().toISOString(),
   };
 }

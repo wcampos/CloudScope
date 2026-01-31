@@ -1,8 +1,9 @@
 """Redis cache for AWS resources. Cache is only refreshed on page load or explicit refresh."""
+
 import json
 import logging
 import os
-from typing import Any, Optional
+from typing import Any
 
 import redis
 
@@ -12,10 +13,10 @@ REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 _RESOURCE_CACHE_PREFIX = "cloudscope:resources:"
 _RESOURCE_CACHE_TTL = 86400 * 7  # 7 days; refresh is explicit via button or page
 
-_redis_client: Optional[redis.Redis] = None
+_redis_client: redis.Redis | None = None
 
 
-def get_redis() -> Optional[redis.Redis]:
+def get_redis() -> redis.Redis | None:
     """Return Redis client if available; None if Redis is disabled or unreachable."""
     global _redis_client
     if _redis_client is not None:
@@ -35,7 +36,7 @@ def _cache_key(profile_id: int) -> str:
     return f"{_RESOURCE_CACHE_PREFIX}{profile_id}"
 
 
-def get_cached_resources(profile_id: int) -> Optional[dict[str, Any]]:
+def get_cached_resources(profile_id: int) -> dict[str, Any] | None:
     """Return cached resources for the profile, or None if miss or Redis unavailable."""
     r = get_redis()
     if not r:

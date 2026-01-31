@@ -1,7 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import * as resourcesApi from '@/api/resources';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import * as resourcesApi from "@/api/resources";
 
-const QUERY_KEY = ['resources'];
+const QUERY_KEY = ["resources"];
 
 export function useResources() {
   return useQuery({

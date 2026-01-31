@@ -9,7 +9,7 @@ export interface Profile {
   updated_at?: string;
 }
 
-export type RoleType = 'none' | 'existing' | 'custom';
+export type RoleType = "none" | "existing" | "custom";
 
 export interface ProfileFormData {
   name: string;
@@ -27,7 +27,7 @@ export interface ProfileFormData {
 export interface ProfileFromRoleData {
   source_profile_id: number;
   name: string;
-  role_type: 'existing' | 'custom';
+  role_type: "existing" | "custom";
   role_name?: string;
   aws_session_token?: string;
 }

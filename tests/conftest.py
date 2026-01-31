@@ -1,64 +1,68 @@
-"""Test configuration and fixtures."""
+"""Test configuration and fixtures for FastAPI API."""
 
 import os
 import sys
-import tempfile
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
-# Add project root and api so root app can find models, aws_classes, version
-_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-_api_path = os.path.join(_project_root, 'api')
-sys.path.insert(0, _project_root)
-sys.path.insert(1, _api_path)
+# Ensure api (app) is on path: Docker uses /app, CI uses repo/api
+_tests_dir = os.path.dirname(os.path.abspath(__file__))
+_root = os.path.dirname(_tests_dir)
+_api_dir = os.path.join(_root, "api")
+if os.path.isdir(_api_dir) and os.path.isfile(os.path.join(_api_dir, "main.py")):
+    sys.path.insert(0, _api_dir)
+else:
+    sys.path.insert(0, _root)
 
-from app import app as flask_app, db  # pylint: disable=wrong-import-position
+from database import Base, get_db  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from main import app  # noqa: E402
 
-@pytest.fixture
-def app():
-    """Create and configure a new app instance for each test."""
-    # Create a temporary file to isolate the database for each test
-    db_fd, db_path = tempfile.mkstemp()
-    flask_app.config.update({
-        'TESTING': True,
-        'SQLALCHEMY_DATABASE_URI': f'sqlite:///{db_path}',
-        'SQLALCHEMY_TRACK_MODIFICATIONS': False,
-        'SECRET_KEY': 'test-key'
-    })
+# In-memory SQLite for tests (no profiles)
+TEST_ENGINE = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=TEST_ENGINE)
 
-    # Create tables
-    with flask_app.app_context():
-        db.create_all()
 
-    yield flask_app
+def override_get_db():
+    """Yield a test DB session with empty tables (no active profile)."""
+    Base.metadata.create_all(bind=TEST_ENGINE)
+    db = TestSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-    # Clean up
-    os.close(db_fd)
-    os.unlink(db_path)
-
-@pytest.fixture
-def client(app):
-    """Create a test client for the app."""
-    return app.test_client()
 
 @pytest.fixture
-def runner(app):
-    """Create a test CLI runner for the app."""
-    return app.test_cli_runner()
+def client():
+    """FastAPI test client with test DB (no profiles)."""
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def aws_profile():
+    """Minimal AWS profile-like object for AWS service class tests (no DB)."""
+    from models import AWSProfile
+
+    return AWSProfile(
+        name="test-profile",
+        aws_access_key_id="test-key",
+        aws_secret_access_key="test-secret",
+        aws_region="us-east-1",
+        is_active=True,
+    )
+
 
 @pytest.fixture(autouse=True)
 def setup_test_env():
-    """Set up test environment variables."""
-    os.environ['FLASK_ENV'] = 'testing'
-    os.environ['SECRET_KEY'] = 'test-key'
+    """Set test environment variables."""
+    os.environ["AWS_ACCESS_KEY_ID"] = "testing"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
+    os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
     yield
-
-@pytest.fixture(autouse=True)
-def aws_credentials():
-    """Mocked AWS Credentials for moto."""
-    os.environ['AWS_ACCESS_KEY_ID'] = 'testing'
-    os.environ['AWS_SECRET_ACCESS_KEY'] = 'testing'
-    os.environ['AWS_SECURITY_TOKEN'] = 'testing'
-    os.environ['AWS_SESSION_TOKEN'] = 'testing'
-    os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
-    yield 
