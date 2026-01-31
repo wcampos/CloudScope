@@ -219,47 +219,48 @@ class ProfileParserResource(Resource):
     def post(self):
         """Parse AWS credentials and create a profile"""
         data = request.json
-        credentials_text = data.get('credentials_text')
+        if not data:
+            return {'error': 'Invalid JSON body or missing Content-Type: application/json'}, 400
+        credentials_text = (data.get('credentials_text') or '').strip()
         if not credentials_text:
             return {'error': 'No credentials provided'}, 400
 
-        # Create a ConfigParser with the pasted text
-        config = configparser.ConfigParser()
-        
-        # Add a default section header if none exists
-        if not credentials_text.strip().startswith('['):
-            credentials_text = '[default]\n' + credentials_text
-        
-        # Parse the credentials text
-        config.read_string(credentials_text)
+        try:
+            # Create a ConfigParser with the pasted text
+            config = configparser.ConfigParser()
+            # Add a default section header if none exists
+            if not credentials_text.startswith('['):
+                credentials_text = '[default]\n' + credentials_text
+            config.read_string(credentials_text)
+        except configparser.Error as e:
+            logger.warning(f"Credentials parse error: {e}")
+            return {'error': f'Invalid credentials format: {str(e)}'}, 400
 
-        # Get the first section (profile) name
         if len(config.sections()) == 0:
             return {'error': 'No valid profile found in credentials'}, 400
-        
+
         profile_name = config.sections()[0]
         profile_data = config[profile_name]
-
-        # Extract required fields
-        aws_access_key_id = profile_data.get('aws_access_key_id')
-        aws_secret_access_key = profile_data.get('aws_secret_access_key')
+        aws_access_key_id = (profile_data.get('aws_access_key_id') or '').strip()
+        aws_secret_access_key = (profile_data.get('aws_secret_access_key') or '').strip()
         if not aws_access_key_id or not aws_secret_access_key:
             return {'error': 'Access key ID and secret access key are required'}, 400
 
-        # Extract optional fields
-        aws_session_token = profile_data.get('aws_session_token')
-        region = profile_data.get('region', 'us-east-1')
+        aws_session_token = (profile_data.get('aws_session_token') or '').strip() or None
+        region = (profile_data.get('region') or 'us-east-1').strip()
 
-        # Create new profile in database
+        name_for_db = profile_name.replace('profile ', '', 1).strip() or 'default'
+        if AWSProfile.query.filter_by(name=name_for_db).first():
+            return {'error': f'Profile "{name_for_db}" already exists'}, 409
+
         new_profile = AWSProfile(
-            name=profile_name.replace('profile ', ''),  # Remove 'profile ' prefix if present
+            name=name_for_db,
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
             aws_region=region
         )
 
-        # Try to get account number
         try:
             account_info = new_profile.get_account_info()
             if account_info:
@@ -267,8 +268,13 @@ class ProfileParserResource(Resource):
         except Exception as e:
             logger.warning(f"Could not fetch account number for profile {profile_name}: {str(e)}")
 
-        db.session.add(new_profile)
-        db.session.commit()
+        try:
+            db.session.add(new_profile)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.exception("Failed to save imported profile")
+            return {'error': f'Failed to save profile: {str(e)}'}, 500
 
         return _profile_to_safe_dict(new_profile), 201
 

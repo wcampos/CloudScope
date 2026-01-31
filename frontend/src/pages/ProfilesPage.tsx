@@ -41,8 +41,16 @@ export default function ProfilesPage() {
 
   const handleParse = (text: string) => {
     parseCredentials.mutate(text, {
-      onSuccess: () => notify('Credentials parsed successfully', 'success'),
-      onError: (err) => notify(String(err), 'error'),
+      onSuccess: (profile) => {
+        notify(`Profile "${profile.name}" imported successfully`, 'success');
+      },
+      onError: (err: { response?: { data?: { error?: string } }; message?: string }) => {
+        const message =
+          err.response?.data?.error ??
+          (err as Error).message ??
+          'Failed to import credentials';
+        notify(message, 'error');
+      },
     });
   };
 
